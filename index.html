@@ -193,6 +193,29 @@ function tryParseJSONorB64(input) {
   } catch(e){
     console.warn("Base64 parse failed", e);
   }
+  // --- Last-resort: repair corrupted payloads (like from watch_ad command) ---
+  try {
+    let repaired = s;
+    // Handle URL-safe and doubly encoded Base64 parts from Telegram deeplinks
+    repaired = repaired.replace(/%3D/g, '=').replace(/%2B/g, '+').replace(/%2F/g, '/');
+    repaired = repaired.replace(/-/g, '+').replace(/_/g, '/');
+    while (repaired.length % 4 !== 0) repaired += '=';
+
+    // Try to decode Base64 → text → JSON
+    let decoded = '';
+    try { decoded = atob(repaired); } catch(e) {
+      try { decoded = decodeURIComponent(escape(atob(unescape(repaired)))); } catch(_) {}
+    }
+
+    // Sometimes Telegram double-wraps JSON in quotes or brackets
+    if (decoded.startsWith('"') && decoded.endsWith('"')) decoded = decoded.slice(1, -1);
+    if (decoded.includes('{') && decoded.includes('}')) {
+      const jsonStr = decoded.slice(decoded.indexOf('{'), decoded.lastIndexOf('}') + 1);
+      return JSON.parse(jsonStr);
+    }
+  } catch (err) {
+    console.warn("Deep payload repair failed", err);
+  }
 
   // --- Try nested encoded JSON (rare edge case) ---
   try {
