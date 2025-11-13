@@ -153,68 +153,105 @@
     const AD_COOLDOWN_MS = 5000; // 5s between popunders
     const VIP_ELIGIBLE_DAYS = 3; // show VIP segment only after this many days
 
-    // ---------- utilities ----------
-    function safeText(resp){ try { return resp ? resp.text() : null; } catch(e) { return null; } }
+// ---------- utilities ----------
+function safeText(resp) {
+  try { return resp ? resp.text() : null; } catch(e) { return null; }
+}
 
-    // Try to decode base64 or JSON safely (kept and hardened)
-    function tryParseJSONorB64(input) {
-      if (!input) return null;
-      let s = String(input).trim();
-      // JSON raw
-      if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
-        try { return JSON.parse(s); } catch(e) {}
+// --- Hardened Base64 + JSON hybrid parser ---
+function tryParseJSONorB64(input) {
+  if (!input) return null;
+  let s = String(input).trim();
+  // --- Direct JSON case ---
+  if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
+    try { return JSON.parse(s); } catch(e) {}
+  }
+
+  // --- URL-decoded JSON case ---
+  try {
+    const dec = decodeURIComponent(s);
+    if ((dec.startsWith('{') && dec.endsWith('}')) || (dec.startsWith('[') && dec.endsWith(']'))) {
+      return JSON.parse(dec);
+    }
+  } catch(e){}
+
+  // --- Base64 decoding (handles URL-safe, missing padding, double encoding) ---
+  try {
+    let b = s.replace(/-/g, '+').replace(/_/g, '/');
+    // Handle URL double encoding (like %3D etc.)
+    b = decodeURIComponent(b);
+    // Fix missing padding
+    while (b.length % 4 !== 0) b += '=';
+    let raw = '';
+    try { raw = atob(b); } catch(e) { raw = atob(unescape(b)); }
+    try { raw = decodeURIComponent(escape(raw)); } catch(e){}
+    if ((raw.startsWith('{') && raw.endsWith('}')) || (raw.startsWith('[') && raw.endsWith(']'))) {
+      return JSON.parse(raw);
+    } else {
+      return raw;
+    }
+  } catch(e){
+    console.warn("Base64 parse failed", e);
+  }
+
+  // --- Try nested encoded JSON (rare edge case) ---
+  try {
+    const deep = JSON.parse(decodeURIComponent(escape(atob(input))));
+    if (typeof deep === 'object') return deep;
+  } catch(e){}
+
+  return null;
+}
+
+// --- Deeplink payload decoder (GainGrid spin compatible) ---
+function parseDeeplinkPayload() {
+  try {
+    const qs = new URLSearchParams(location.search || '');
+    const candidates = [];
+
+    // Collect all possible keys
+    ['start','data','s','p','payload'].forEach(k => {
+      if (qs.get(k)) candidates.push(qs.get(k));
+    });
+
+    // --- Hash mode support ---
+    if (location.hash) {
+      let rawHash = location.hash.replace(/^#/, '');
+      if (rawHash.includes('?')) {
+        let hashQs = rawHash.split('?').slice(1).join('?');
+        const hparams = new URLSearchParams(hashQs);
+        ['start','data','s','p','payload'].forEach(k => {
+          if (hparams.get(k)) candidates.push(hparams.get(k));
+        });
+      } else {
+        candidates.push(rawHash);
       }
-      // URL-decoded JSON
-      try {
-        const dec = decodeURIComponent(s);
-        if ((dec.startsWith('{') && dec.endsWith('}')) || (dec.startsWith('[') && dec.endsWith(']'))) {
-          return JSON.parse(dec);
-        }
-      } catch(e){}
-      // base64 (URL-safe accounted)
-      try {
-        let b = s.replace(/-/g,'+').replace(/_/g,'/');
-        b = b + '='.repeat((4 - (b.length % 4)) % 4);
-        let raw = atob(b);
-        try { raw = decodeURIComponent(escape(raw)); } catch(e){}
-        if ((raw.startsWith('{') && raw.endsWith('}')) || (raw.startsWith('[') && raw.endsWith(']'))) {
-          return JSON.parse(raw);
-        } else {
-          return raw;
-        }
-      } catch(e){}
-      return null;
     }
 
-    function parseDeeplinkPayload() {
-      try {
-        const qs = new URLSearchParams(location.search || '');
-        const candidates = [];
-        ['start','data','s','p','payload'].forEach(k => { if (qs.get(k)) candidates.push(qs.get(k)); });
-        if (location.hash) {
-          let rawHash = location.hash.replace(/^#/,'');
-          let hashQs = rawHash.split('?').slice(1).join('?');
-          if (hashQs) {
-            const hparams = new URLSearchParams(hashQs);
-            ['data','start','s','p','payload'].forEach(k => { if (hparams.get(k)) candidates.push(hparams.get(k)); });
-          } else {
-            candidates.push(rawHash);
-          }
-        }
-        if (location.search && location.search.length>1) {
-          const raw = location.search.replace(/^\?/,'');
-          candidates.push(raw);
-        }
-        for (const c of candidates) {
-          const parsed = tryParseJSONorB64(c);
-          if (parsed && typeof parsed === 'object') return parsed;
-        }
-        return null;
-      } catch (e) {
-        console.warn('parseDeeplinkPayload err', e);
-        return null;
-      }
+    // --- Fallback: entire search string as one candidate ---
+    if (location.search && location.search.length > 1) {
+      const raw = location.search.replace(/^\?/, '');
+      candidates.push(raw);
     }
+
+    // --- Try to parse each candidate ---
+    for (const c of candidates) {
+      const parsed = tryParseJSONorB64(c);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+
+    // --- Fallback: check local session ---
+    const cached = sessionStorage.getItem('gainGridUserData');
+    if (cached) {
+      try { return JSON.parse(cached); } catch(e){}
+    }
+
+    return null;
+  } catch (e) {
+    console.warn('parseDeeplinkPayload error', e);
+    return null;
+  }
+}
 
     // prefer webhook from incoming payload when posting to bot
     async function postToCallbackOrWebhook(wrapper, callbackUrlCandidate) {
