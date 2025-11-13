@@ -119,17 +119,8 @@
 
   <!-- ad overlay (created dynamically when needed) -->
 
-<!-- REPLACE your previous JS block with the following SCRIPT block -->
 <script>
-/* ---------- GainGrid Spin & Win — Full backend/frontend integration (recode) ---------- */
-/*  - preserves every UI id/class and function names
-    - hardened deeplink / base64 / double-encoded handling
-    - ensures spin button triggers spin and autoStart only when appropriate
-    - gift box appears only at spins_used === 9
-    - posts spin_result & ad events back to incoming callback/webhook when available
-    - does not remove/change commands, names, UI, or animations
-*/
-
+/* ---------- GainGrid Spin & Win — extended with consecutive-spin lock / session reporting ---------- */
   (function () {
     // ---------- preserved config & rewards ----------
     const defaultConfig = {
@@ -138,14 +129,13 @@
       footer_text: "© GainGrid 2025 | All rights reserved",
       support_links: "Telegram Support | Privacy Policy"
     };
-    
   // ---------- constants & base segments ----------
   const AD_COOLDOWN_MS = 5000; // 5s between popunders
   const VIP_ELIGIBLE_DAYS = 3; // show VIP segment only after this many days
   const SMARTLINK_1 = 'https://otieu.com/4/10176185';
   const SMARTLINK_2 = 'https://otieu.com/4/10176155';
+  const MAX_CONSECUTIVE_SPINS = 3; // lock after this many consecutive spins
 
-  // keep your original wheel base (preserve semantics)
   const wheelSegmentsBase = [
     { key:'g50', text: "+50 G-Coins", color: "#8e24aa", value: 50, type: "coins" },
     { key:'g100', text: "+100 G-Coins", color: "#ab47bc", value: 100, type: "coins" },
@@ -161,105 +151,56 @@
 
   // ---------- state ----------
   let currentSegments = [];
-  let userData = null;             // persisted via dataSdk or seeded from deeplink
+  let userData = null;
   let isSpinning = false;
   let telegramUserId = null;
   let incomingPayload = null;
   let autoStartRequested = false;
   let lastAdCloseAt = 0;
 
+  // New session tracking for consecutive-spin lock & reporting
+  let consecutiveSpins = 0;         // counts spins in current "session" (resets on ad/unlock/report)
+  let sessionEarnedCoins = 0;       // coins earned since last season report
+  let lockedUntilAd = false;        // true when user must watch ad to continue
+
   // ---------- utilities ----------
   function safeText(resp) {
     try { return resp ? resp.text() : null; } catch(e) { return null; }
   }
 
-  // Hardened parser: JSON, URL-decoded JSON, base64, URL-safe base64, double-encoded, repaired payloads
   function tryParseJSONorB64(input) {
     if (!input) return null;
     let s = String(input).trim();
-
-    // direct JSON
-    try {
-      if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
-        return JSON.parse(s);
-      }
-    } catch(e){}
-
-    // URL-decoded JSON
-    try {
-      const dec = decodeURIComponent(s);
-      if ((dec.startsWith('{') && dec.endsWith('}')) || (dec.startsWith('[') && dec.endsWith(']'))) {
-        return JSON.parse(dec);
-      }
-    } catch(e){}
-
-    // Several attempts for base64 / urlsafe / double-encoded payloads:
+    try { if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) return JSON.parse(s); } catch(e){}
+    try { const dec = decodeURIComponent(s); if ((dec.startsWith('{') && dec.endsWith('}')) || (dec.startsWith('[') && dec.endsWith(']'))) return JSON.parse(dec); } catch(e){}
     const tryBase64 = (b64) => {
       try {
-        // fix url-safe
         let b = String(b64).replace(/-/g, '+').replace(/_/g, '/');
-        // replace percent-encodings produced by double urlencoding
         b = b.replace(/%3D/gi, '=').replace(/%2B/gi, '+').replace(/%2F/gi, '/');
-        // pad
         while (b.length % 4 !== 0) b += '=';
-        // atob may throw
         let raw = atob(b);
         try { raw = decodeURIComponent(escape(raw)); } catch(e){}
-        if ((raw.startsWith('{') && raw.endsWith('}')) || (raw.startsWith('[') && raw.endsWith(']'))) {
-          return JSON.parse(raw);
-        }
-        // if raw contains JSON inside (wrapped), extract it
+        if ((raw.startsWith('{') && raw.endsWith('}')) || (raw.startsWith('[') && raw.endsWith(']'))) return JSON.parse(raw);
         const first = raw.indexOf('{'), last = raw.lastIndexOf('}');
         if (first !== -1 && last !== -1 && last > first) {
           const sub = raw.slice(first, last+1);
           try { return JSON.parse(sub); } catch(e){}
         }
-        // return raw string if nothing else
         return raw;
-      } catch(e){
-        return null;
-      }
+      } catch(e){ return null; }
     };
-
-    // try raw atob
-    try {
-      const r = tryBase64(s);
-      if (r) return r;
-    } catch(e){}
-
-    // try decodeURIComponent then base64
-    try {
-      const dec = decodeURIComponent(s);
-      const r2 = tryBase64(dec);
-      if (r2) return r2;
-    } catch(e){}
-
-    // try nested/escaped forms
-    try {
-      const unesc = unescape(s);
-      const r3 = tryBase64(unesc);
-      if (r3) return r3;
-    } catch(e){}
-
-    // last-resort repair for truncated/URL-encoded strings
-    try {
-      let repaired = s.replace(/%3D/gi, '=').replace(/%2B/gi,'+').replace(/%2F/gi,'/').replace(/-/g,'+').replace(/_/g,'/');
-      while (repaired.length % 4 !== 0) repaired += '=';
-      const r4 = tryBase64(repaired);
-      if (r4) return r4;
-    } catch(e){}
-
+    try { const r = tryBase64(s); if (r) return r; } catch(e){}
+    try { const dec = decodeURIComponent(s); const r2 = tryBase64(dec); if (r2) return r2; } catch(e){}
+    try { const unesc = unescape(s); const r3 = tryBase64(unesc); if (r3) return r3; } catch(e){}
+    try { let repaired = s.replace(/%3D/gi, '=').replace(/%2B/gi,'+').replace(/%2F/gi,'/').replace(/-/g,'+').replace(/_/g,'/'); while (repaired.length % 4 !== 0) repaired += '='; const r4 = tryBase64(repaired); if (r4) return r4; } catch(e){}
     return null;
   }
 
-  // Parse deeplink payload supporting ?start=, ?data=, hash, or whole search string
   function parseDeeplinkPayload() {
     try {
       const qs = new URLSearchParams(location.search || '');
       const candidates = [];
       ['start','data','s','p','payload'].forEach(k => { const v = qs.get(k); if (v) candidates.push(v); });
-
-      // hash support (#/route?start=...)
       if (location.hash) {
         const rawHash = location.hash.replace(/^#/,'');
         if (rawHash.includes('?')) {
@@ -270,35 +211,16 @@
           candidates.push(rawHash);
         }
       }
-
-      // fallback entire search string
-      if (location.search && location.search.length > 1) {
-        candidates.push(location.search.replace(/^\?/,''));
-      }
-
-      // test each candidate
+      if (location.search && location.search.length > 1) candidates.push(location.search.replace(/^\?/,''));
       for (const c of candidates) {
         const parsed = tryParseJSONorB64(c);
         if (parsed && typeof parsed === 'object') return parsed;
       }
-
-      // check sessionStorage fallback (persisted by caller maybe)
-      try {
-        const cached = sessionStorage.getItem('gainGridUserData');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && typeof parsed === 'object') return parsed;
-        }
-      } catch(e){}
-
+      try { const cached = sessionStorage.getItem('gainGridUserData'); if (cached) return JSON.parse(cached); } catch(e){}
       return null;
-    } catch (e) {
-      console.warn('parseDeeplinkPayload err', e);
-      return null;
-    }
+    } catch (e) { console.warn('parseDeeplinkPayload err', e); return null; }
   }
 
-  // prefer webhook from incoming payload when posting to bot
   async function postToCallbackOrWebhook(wrapper, callbackUrlCandidate) {
     try {
       const candidate = callbackUrlCandidate ||
@@ -312,26 +234,42 @@
         keepalive: true
       });
       return { ok: resp && resp.ok, status: resp && resp.status, text: await safeText(resp) };
-    } catch (e) {
-      console.error('postToCallbackOrWebhook err', e);
-      return { ok:false, error:String(e) };
-    }
+    } catch (e) { console.error('postToCallbackOrWebhook err', e); return { ok:false, error:String(e) }; }
   }
 
   async function postToBotWebhook(wrapper) {
     return postToCallbackOrWebhook(wrapper, null);
   }
 
-  // ---------- VIP eligibility ----------
+  // ---------- consecutive-spin season reporting ----------
+  async function reportSeasonAndReset() {
+    if (!userData) return;
+    const seasonWrapper = {
+      action: 'spin_season',
+      payload: {
+        user_id: telegramUserId || (userData && (userData.telegram_id || userData.id)) || null,
+        spins_in_season: consecutiveSpins,
+        earned_in_season: sessionEarnedCoins,
+        spin_limit: `${Math.max(0,10 - (userData.spins_used || 0))}/10`,
+        ts: new Date().toISOString()
+      },
+      meta: { from_frontend: true }
+    };
+    try {
+      await postToBotWebhook(seasonWrapper);
+    } catch(e) { console.warn('season post err', e); }
+    consecutiveSpins = 0;
+    sessionEarnedCoins = 0;
+    lockedUntilAd = true; // enforce watch ad to continue
+  }
+
+  // ---------- VIP helpers ----------
   function vipEligibleToShow(user) {
     try {
       const t = user.vip_first_seen_time;
       if (!t) {
-        // seed timestamp but do not show yet
         user.vip_first_seen_time = new Date().toISOString();
-        if (window.dataSdk && user && user.id) {
-          window.dataSdk.update(user).catch(()=>{});
-        }
+        if (window.dataSdk && user && user.id) window.dataSdk.update(user).catch(()=>{});
         return false;
       } else {
         const diff = Date.now() - new Date(t).getTime();
@@ -343,13 +281,14 @@
 
   function buildSegmentsForUser(user) {
     const segs = [...wheelSegmentsBase];
-    if (user && user.vip_status && user.vip_status !== 'free' && vipEligibleToShow(user)) {
+    // if user has reached top-tier, do not add vip_shiny
+    if (user && user.vip_status && user.vip_status !== 'free' && user.vip_status !== 'platinum' && vipEligibleToShow(user)) {
       segs.splice( Math.max(1, Math.floor(segs.length/2)), 0, { key:'vip_shiny', text: '💎 VIP RARE', color:'#ffd700', value:0, type:'vip_shiny' } );
     }
     return segs;
   }
 
-  // ---------- UI rendering ----------
+  // ---------- render / UI ----------
   function shuffleWheel() {
     currentSegments = buildSegmentsForUser(userData).sort(() => Math.random() - 0.5);
   }
@@ -372,30 +311,23 @@
     });
   }
 
-  // ---------- gift box logic ----------
   function maybeShowGiftBox() {
     const gift = document.getElementById('giftBox');
     if (!gift) return;
     if (!userData) { gift.style.display = 'none'; return; }
     const spinsUsed = userData.spins_used || 0;
-    if (spinsUsed === 9) gift.style.display = 'flex'; else gift.style.display = 'none';
+    if (spinsUsed === 9 && !lockedUntilAd) gift.style.display = 'flex'; else gift.style.display = 'none';
   }
 
-  // ---------- modal helpers ----------
   function showModal(title, message) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-message').textContent = message; document.getElementById('result-modal').classList.add('active'); }
   function closeModal() { document.getElementById('result-modal').classList.remove('active'); }
 
-  // ---------- deeplink + auto-validation ----------
   function startAutoValidationFlow(payload) {
     try {
       if (!payload) return;
       incomingPayload = payload;
-      // ad-like flow if secs present
-      const secs = Number(payload.secs || payload.seconds || payload.duration || 0);
-      const adId = payload.ad_id || payload.adid || payload.id;
-      const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
       window.__gaingrid_incoming = payload;
-
+      const secs = Number(payload.secs || payload.seconds || payload.duration || 0);
       if (secs > 0) {
         const vipMessageEl = document.getElementById('vip-message');
         if (vipMessageEl) vipMessageEl.textContent = `Ad playing... (${secs}s) — page will auto-validate when done.`;
@@ -405,35 +337,14 @@
           if (vipMessageEl) vipMessageEl.textContent = `Ad playing... (${remaining}s) — page will auto-validate when done.`;
           if (remaining <= 0) clearInterval(interval);
         }, 1000);
-
         setTimeout(async ()=> {
-          const wrapper = {
-            action: 'ads_validate',
-            payload: {
-              ad_id: adId,
-              user_id: userId,
-              status: 'ad_complete',
-              secs: secs,
-              reward: payload.reward || payload.rewards || payload.amount || null,
-              ts: new Date().toISOString()
-            },
-            meta: { from_hosted: true, auto: true }
-          };
+          const wrapper = { action: 'ads_validate', payload: { ad_id: payload.ad_id||payload.adid||null, user_id: payload.user_id||null, status: 'ad_complete', secs: secs, reward: payload.reward||null, ts: new Date().toISOString() }, meta: { from_hosted: true, auto: true } };
           const res = await postToCallbackOrWebhook(wrapper, payload.callback_url || payload.webhook);
-          console.log('auto validation POST result', res);
-          try { const vipEl = document.getElementById('vip-message'); if (vipEl) vipEl.textContent = 'Ad validated — thank you!'; } catch(e){}
-          if (res && res.ok) {
-            showModal('✅ Ad Verified','Thanks — reward will be credited shortly.');
-            setTimeout(()=> { closeModal(); try { if (window.Telegram && Telegram.WebApp) Telegram.WebApp.close(); } catch(e){} }, 1400);
-          } else {
-            showModal('⚠️ Validation Failed','Could not notify bot. Please try again or contact support.');
-          }
+          if (res && res.ok) { showModal('✅ Ad Verified','Thanks — reward will be credited shortly.'); setTimeout(()=>{ closeModal(); try{ if (window.Telegram && Telegram.WebApp) Telegram.WebApp.close(); }catch(e){} },1400); }
+          else { showModal('⚠️ Validation Failed','Could not notify bot. Please try again or contact support.'); }
         }, secs*1000 + 300);
       } else {
-        // if not ad, check for start flags
-        if (payload.start === true || payload.start === 'true' || payload.start_immediately === true) {
-          autoStartRequested = true;
-        }
+        if (payload.start === true || payload.start === 'true' || payload.start_immediately === true) autoStartRequested = true;
       }
       setupSkipOnClose(payload);
     } catch (e) { console.error('startAutoValidationFlow err', e); }
@@ -446,14 +357,12 @@
       try {
         if (alreadySent) return;
         alreadySent = true;
-        const adId = payload.ad_id || payload.adid || payload.id;
-        const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
-        const wrapper = { action:'ads_validate', payload: { ad_id:adId, user_id:userId, status:'ad_skipped', ts:new Date().toISOString() }, meta:{ from_hosted:true, reason:'closed' } };
+        const wrapper = { action:'ads_validate', payload: { ad_id:payload.ad_id||null, user_id:payload.user_id||null, status:'ad_skipped', ts:new Date().toISOString() }, meta:{ from_hosted:true, reason:'closed' } };
         try {
           const target = callback || (incomingPayload && (incomingPayload.callback_url||incomingPayload.webhook)) || '<% options.url %>';
           const blob = new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
-          if (navigator && navigator.sendBeacon) { navigator.sendBeacon(target, blob); }
-          else { fetch(target, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(wrapper), keepalive:true }); }
+          if (navigator && navigator.sendBeacon) navigator.sendBeacon(target, blob);
+          else fetch(target, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(wrapper), keepalive:true });
         } catch (err) { console.warn('skip-on-close post failed', err); }
       } catch(e){}
     }
@@ -461,7 +370,7 @@
     window.addEventListener('pagehide', handler);
   }
 
-  // ---------- dataSdk & initialization ----------
+  // ---------- data sdk handler ----------
   const dataHandler = {
     onDataChanged(data) {
       if (data && data.length > 0) {
@@ -488,14 +397,10 @@
   }
 
   async function initializeApp() {
-    // parse deeplink payload first
     const incoming = parseDeeplinkPayload();
     if (incoming) {
-      console.log('Deeplink payload detected:', incoming);
       incomingPayload = incoming;
-      // persist a copy in sessionStorage so reloads keep it
       try { sessionStorage.setItem('gainGridUserData', JSON.stringify(incoming)); } catch(e){}
-      // seed state from incoming
       if (incoming.vip_level || incoming.vipLevel) {
         if (!userData) userData = {};
         if (!userData.vip_status || userData.vip_status === 'free') userData.vip_status = (incoming.vip_level || incoming.vipLevel).toString().toLowerCase();
@@ -503,17 +408,13 @@
       if (incoming.user_id || incoming.userid || (incoming.user && incoming.user.user_id)) {
         telegramUserId = incoming.user_id || incoming.userid || (incoming.user && incoming.user.user_id) || telegramUserId;
       }
-      // set autoStartRequested if requested
       if (incoming.start === true || incoming.start === 'true' || incoming.start_immediately === true) autoStartRequested = true;
-
-      // start ad flow if secs present
       startAutoValidationFlow(incoming);
     }
 
-    // Initialize data SDK (if available) else fallback
     const initResult = await (window.dataSdk && window.dataSdk.init ? window.dataSdk.init(dataHandler).catch(()=>({isOk:false})) : Promise.resolve({isOk:false}));
     if (!initResult || !initResult.isOk) {
-      console.warn("dataSdk failed — using in-page fallback state");
+      console.warn("dataSdk failed — fallback state used");
       const today = new Date().toISOString().split('T')[0];
       userData = userData || { id:"user_spin_fallback", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"", vip_first_seen_time: null };
       shuffleWheel();
@@ -522,21 +423,15 @@
       updateUI();
       maybeShowGiftBox();
       scheduleSmartlinksLoad();
-      if (autoStartRequested && (userData.spins_used || 0) < 10) {
-        setTimeout(()=>{ spinWheel(); }, 600);
-      }
+      if (autoStartRequested && (userData.spins_used || 0) < 10) setTimeout(()=>{ spinWheel(); },600);
       return;
     }
 
-    // if init ok and userData not created in data storage, create default
     if (!userData) {
       const today = new Date().toISOString().split('T')[0];
       const createResult = await window.dataSdk.create({ id: "user_spin_data", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"", vip_first_seen_time: null }).catch(()=>({isOk:false}));
       if (createResult && createResult.isOk) userData = createResult.data;
-      else {
-        // fallback even if create failed
-        userData = { id:"user_spin_fallback", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"", vip_first_seen_time: null };
-      }
+      else userData = { id:"user_spin_fallback", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"", vip_first_seen_time: null };
     }
 
     shuffleWheel();
@@ -546,12 +441,9 @@
     maybeShowGiftBox();
     scheduleSmartlinksLoad();
 
-    if (autoStartRequested && userData && (userData.spins_used || 0) < 10) {
-      setTimeout(()=>{ spinWheel(); }, 600);
-    }
+    if (autoStartRequested && userData && (userData.spins_used || 0) < 10) setTimeout(()=>{ spinWheel(); },600);
   }
 
-  // ---------- check/reset ----------
   function checkDailyReset() {
     if (!userData) return;
     const today = new Date().toISOString().split('T')[0];
@@ -562,90 +454,82 @@
     }
   }
 
-  // ---------- process win + webhook posting ----------
+  // ---------- process win + minimal spin_result reports ----------
   async function processWin(segment) {
     if (!userData) return;
     userData.spins_used = (userData.spins_used || 0) + 1;
 
-    const resultPayload = {
+    // update local session counters
+    consecutiveSpins += 1;
+    if (segment.type === 'coins' || segment.type === 'mystery') {
+      const earned = (segment.type === 'mystery') ? (Math.floor(Math.random() * 300) + 100) : (segment.value || 0);
+      sessionEarnedCoins += earned;
+      if (segment.type === 'mystery') segment.value = earned;
+      userData.total_coins_won = (userData.total_coins_won || 0) + earned;
+    }
+
+    // Minimal spin_result payload (only required fields)
+    const spinResultMinimal = {
       action: 'spin_result',
       payload: {
         user_id: telegramUserId || (userData && (userData.telegram_id || userData.id)) || null,
         segment_type: segment.type,
         value: segment.value || 0,
-        text: segment.text,
         spins_used: userData.spins_used,
-        ts: new Date().toISOString()
+        spin_limit: `${Math.max(0,10 - (userData.spins_used || 0))}/10`
       },
       meta: { from_frontend: true }
     };
 
-    let modalTitle = "🎉 Congratulations!";
-    let modalMessage = "";
+    // persist user data
+    const updateResult = (window.dataSdk && window.dataSdk.update) ? await window.dataSdk.update(userData).catch(()=>({isOk:false})) : { isOk:false };
+    if (!updateResult || !updateResult.isOk) console.error("Failed to update user data in dataSdk");
 
+    // post minimal spin_result
+    try { await postToBotWebhook(spinResultMinimal); } catch(e){ console.warn('spin webhook err', e); }
+
+    // handle segment-specific modal messages (kept UX)
+    let modalTitle = "🎉 Congratulations!", modalMessage = "";
     switch(segment.type) {
       case "coins":
-        userData.total_coins_won = (userData.total_coins_won || 0) + (segment.value || 0);
-        modalTitle = "💰 You Won!";
-        modalMessage = `You won +${segment.value} G-Coins!\n✅ Credited to your wallet`;
-        break;
+        modalTitle = "💰 You Won!"; modalMessage = `You won +${segment.value} G-Coins!\n✅ Credited to your wallet`; break;
       case "vip_basic":
         userData.vip_status = "basic";
         const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate() + 7);
         userData.vip_expiry = expiryDate.toISOString();
-        modalTitle = "👑 VIP Unlocked!";
-        modalMessage = "You won 🥉 Basic VIP (7-day access)\n✅ Activated now!";
-        break;
+        modalTitle = "👑 VIP Unlocked!"; modalMessage = "You won 🥉 Basic VIP (7-day access)\n✅ Activated now!"; break;
       case "vip_shiny":
         userData.vip_status = "platinum";
         const exp = new Date(); exp.setDate(exp.getDate() + 14);
         userData.vip_expiry = exp.toISOString();
-        modalTitle = "💎 Legendary VIP!";
-        modalMessage = "You won a rare VIP! 🎉 14-day access granted.";
-        break;
+        modalTitle = "💎 Legendary VIP!"; modalMessage = "You won a rare VIP! 🎉 14-day access granted."; break;
       case "mystery":
-        const mysteryCoins = Math.floor(Math.random() * 300) + 100;
-        userData.total_coins_won = (userData.total_coins_won || 0) + mysteryCoins;
-        modalTitle = "🎁 Mystery Box!";
-        modalMessage = `You found +${mysteryCoins} G-Coins inside!\n✅ Credited to your wallet`;
-        resultPayload.payload.value = mysteryCoins;
-        break;
+        modalTitle = "🎁 Mystery Box!"; modalMessage = `You found +${segment.value} G-Coins inside!\n✅ Credited to your wallet`; break;
       case "double_spin":
         userData.spins_used = Math.max(0, userData.spins_used - 1);
-        modalTitle = "🔁 Bonus Spin!";
-        modalMessage = "You won an extra spin!\n✅ Spin again now!";
-        break;
+        modalTitle = "🔁 Bonus Spin!"; modalMessage = "You won an extra spin!\n✅ Spin again now!"; break;
       case "multiplier":
         userData.next_multiplier = (userData.next_multiplier || 1) * 2;
-        modalTitle = "🔥 Multiplier Active!";
-        modalMessage = "Your next coin win will be doubled!\n✅ Spin again to activate!";
-        break;
+        modalTitle = "🔥 Multiplier Active!"; modalMessage = "Your next coin win will be doubled!\n✅ Spin again to activate!"; break;
       case "cooldown":
         userData.cooldown_cut = true;
-        modalTitle = "🧊 Cooldown Cut!";
-        modalMessage = "Spin cooldown reduced!\n✅ Spin faster now!";
-        break;
+        modalTitle = "🧊 Cooldown Cut!"; modalMessage = "Spin cooldown reduced!\n✅ Spin faster now!"; break;
       case "nothing":
       default:
-        modalTitle = "😅 Try Again!";
-        modalMessage = "Better luck next time!\n🎡 Keep spinning for rewards!";
-        break;
+        modalTitle = "😅 Try Again!"; modalMessage = "Better luck next time!\n🎡 Keep spinning for rewards!"; break;
     }
-
-    // update saved state
-    const updateResult = (window.dataSdk && window.dataSdk.update) ? await window.dataSdk.update(userData).catch(e => ({ isOk:false })) : { isOk:false };
-    if (!updateResult || !updateResult.isOk) console.error("Failed to update user data in dataSdk");
-
-    // post to bot webhook/callback
-    try {
-      const wbRes = await postToBotWebhook(resultPayload);
-      console.log('Webhook post result:', wbRes);
-    } catch(e) { console.warn('Webhook err', e); }
 
     showModal(modalTitle, modalMessage);
     maybeShowGiftBox();
 
-    // If user completed daily spins, send final summary
+    // if consecutive limit reached: report season and require ad
+    if (consecutiveSpins >= MAX_CONSECUTIVE_SPINS) {
+      await reportSeasonAndReset();
+      // update UI to show watch ad (locked)
+      updateUI();
+    }
+
+    // final daily summary if finished
     if ((userData.spins_used || 0) >= 10) {
       const finalWrapper = {
         action: 'daily_spin_complete',
@@ -665,6 +549,10 @@
   // ---------- spin implementation ----------
   async function spinWheel() {
     if (isSpinning || !userData || (userData.spins_used >= 10)) return;
+    if (lockedUntilAd) {
+      // force watch ad flow if locked
+      return watchAdFlow();
+    }
     isSpinning = true;
     const spinButton = document.getElementById('spin-button');
     spinButton.disabled = true;
@@ -672,7 +560,6 @@
 
     const wheel = document.getElementById('wheel');
     const segmentAngle = 360 / currentSegments.length;
-    // pick result fairly
     const randomIndex = Math.floor(Math.random() * currentSegments.length);
     const targetRotation = 360 * 5 + (randomIndex * segmentAngle) + (segmentAngle / 2);
 
@@ -683,7 +570,6 @@
       const winningSegment = currentSegments[randomIndex];
       await processWin(winningSegment);
 
-      // reset transform visually (without flicker)
       wheel.style.transition = 'none';
       wheel.style.transform = 'rotate(0deg)';
       setTimeout(()=>{ wheel.style.transition = 'transform 4s cubic-bezier(0.17,0.67,0.12,0.99)'; },50);
@@ -694,29 +580,38 @@
     }, 4000);
   }
 
-  // ---------- watchAd flow (watch ad to unlock spin) ----------
+  // ---------- watchAd flow (unlock after lock) ----------
   async function watchAdFlow() {
     try {
       showModal("📺 Watching Ad...", "Please wait while the ad plays...\n⏳ This will take a few seconds");
       if (typeof show_10176108 === 'function') {
         await show_10176108('pop');
         if (userData) {
+          // reward 1 spin (reduce spins_used)
           userData.spins_used = Math.max(0, (userData.spins_used || 0) - 1);
           if (window.dataSdk && window.dataSdk.update) await window.dataSdk.update(userData).catch(()=>{});
+          // post ad_reward
           const wrapper = { action:'ad_reward', payload:{ user_id: telegramUserId||null, reward_spins:1, spins_used:userData.spins_used, ts:new Date().toISOString() }, meta:{from_frontend:true} };
           await postToCallbackOrWebhook(wrapper, incomingPayload && (incomingPayload.callback_url || incomingPayload.webhook));
+          // unlock
+          lockedUntilAd = false;
+          consecutiveSpins = 0;
+          sessionEarnedCoins = 0;
           closeModal();
           showModal("✅ Spin Unlocked!", "Ad watched successfully!\n🎡 You earned 1 free spin!");
-          setTimeout(()=>{ closeModal(); updateUI(); }, 1600);
+          setTimeout(()=>{ closeModal(); updateUI(); }, 1400);
           return;
         }
       } else {
-        // fallback simulate
+        // fallback simulated ad
         await new Promise(res => setTimeout(res, 2000));
         if (userData) {
           userData.spins_used = Math.max(0, (userData.spins_used || 0) - 1);
           if (window.dataSdk && window.dataSdk.update) await window.dataSdk.update(userData).catch(()=>{});
           await postToCallbackOrWebhook({ action:'ad_reward', payload:{ user_id:telegramUserId||null, reward_spins:1, ts:new Date().toISOString() } }, incomingPayload && (incomingPayload.callback_url || incomingPayload.webhook));
+          lockedUntilAd = false;
+          consecutiveSpins = 0;
+          sessionEarnedCoins = 0;
           closeModal();
           showModal("✅ Spin Unlocked!", "Ad simulated: you earned 1 free spin!");
           setTimeout(()=>{ closeModal(); updateUI(); }, 1200);
@@ -730,7 +625,7 @@
     }
   }
 
-  // ---------- smartlink popunder (cancelable iframe) ----------
+  // ---------- smartlink popunder ----------
   function openSmartAd(url) {
     if (Date.now() - lastAdCloseAt < AD_COOLDOWN_MS) return;
     const overlay = document.createElement('div');
@@ -769,7 +664,7 @@
     }, 15000);
   }
 
-  // ---------- UI update ----------
+  // ---------- update UI ----------
   function updateUI() {
     if (!userData) return;
     const spinsLeft = Math.max(0, 10 - (userData.spins_used || 0));
@@ -778,8 +673,12 @@
     document.getElementById('progress-fill').style.width = `${progressPercent}%`;
 
     const spinButton = document.getElementById('spin-button');
-    // if abused (>=2 used) and no spins left -> show watch ad
-    if ((userData.spins_used || 0) >= 2 && spinsLeft === 0) {
+    if (lockedUntilAd) {
+      spinButton.textContent = '▶️ Watch Ad to Continue';
+      spinButton.className = 'button button-secondary';
+      spinButton.disabled = isSpinning;
+      spinButton.onclick = watchAdFlow;
+    } else if ((userData.spins_used || 0) >= 2 && spinsLeft === 0) {
       spinButton.textContent = '▶️ Watch Ad to Unlock Spin';
       spinButton.className = 'button button-secondary';
       spinButton.disabled = isSpinning;
@@ -793,9 +692,7 @@
       spinButton.textContent = '🌀 Spin Now';
       spinButton.className = 'button button-primary';
       spinButton.disabled = isSpinning;
-      spinButton.onclick = async () => {
-        spinWheel();
-      };
+      spinButton.onclick = async () => { spinWheel(); };
     }
 
     updateVIPStatus();
@@ -826,6 +723,10 @@
                 if (window.dataSdk && window.dataSdk.update) await window.dataSdk.update(userData).catch(()=>{});
                 const wrapper = { action:'giftbox_opened', payload:{ user_id: telegramUserId || null, reward_spins:3, spins_used: userData.spins_used, ts: new Date().toISOString() } };
                 await postToCallbackOrWebhook(wrapper, incomingPayload && (incomingPayload.callback_url || incomingPayload.webhook));
+                // opening gift also clears consecutive lock
+                lockedUntilAd = false;
+                consecutiveSpins = 0;
+                sessionEarnedCoins = 0;
                 showModal("🎁 Gift Opened!", "You received +3 spins!");
                 maybeShowGiftBox();
                 updateUI();
@@ -837,6 +738,9 @@
               if (window.dataSdk && window.dataSdk.update) await window.dataSdk.update(userData).catch(()=>{});
               const wrapper = { action:'giftbox_opened', payload:{ user_id: telegramUserId||null, reward_spins:3, spins_used:userData.spins_used, ts:new Date().toISOString() } };
               await postToCallbackOrWebhook(wrapper, incomingPayload && (incomingPayload.callback_url || incomingPayload.webhook));
+              lockedUntilAd = false;
+              consecutiveSpins = 0;
+              sessionEarnedCoins = 0;
               showModal("🎁 Gift Opened!", "You received +3 spins!");
               maybeShowGiftBox();
               updateUI();
@@ -850,27 +754,14 @@
   // ---------- refresh & event listeners ----------
   function setupEventListeners() {
     const spinBtn = document.getElementById('spin-button');
-    if (spinBtn) {
-      spinBtn.addEventListener('click', () => {
-        // uses assigned onclick (set by updateUI)
-        const btn = document.getElementById('spin-button');
-        if (btn && typeof btn.onclick === 'function') btn.onclick();
-      });
-    }
+    if (spinBtn) spinBtn.addEventListener('click', () => { const btn = document.getElementById('spin-button'); if (btn && typeof btn.onclick === 'function') btn.onclick(); });
     const refreshBtn = document.getElementById('refresh-button');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', ()=> {
-        if (isSpinning) return;
-        shuffleWheel();
-        renderWheel();
-        showModal("🔄 Wheel Refreshed!", "Segments have been shuffled!\n🎡 Try your luck again!");
-      });
-    }
+    if (refreshBtn) refreshBtn.addEventListener('click', ()=> { if (isSpinning) return; shuffleWheel(); renderWheel(); showModal("🔄 Wheel Refreshed!", "Segments have been shuffled!\n🎡 Try your luck again!"); });
     const modalClose = document.getElementById('modal-close');
     if (modalClose) modalClose.addEventListener('click', closeModal);
   }
 
-  // elementSdk integration (kept) — preserve as-is
+  // elementSdk integration (kept)
   async function onConfigChange(config) {
     try {
       document.getElementById('main-title').textContent = config.main_title || defaultConfig.main_title;
@@ -894,9 +785,9 @@
     });
   }
 
-  // expose helpers (debug)
+  // expose helpers for debug
   window.gaingrid = {
-    getState: () => ({ userData, incomingPayload, currentSegments }),
+    getState: () => ({ userData, incomingPayload, currentSegments, lockedUntilAd, consecutiveSpins, sessionEarnedCoins }),
     openSmartAd,
     spinWheel,
     watchAdFlow,
