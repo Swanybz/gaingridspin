@@ -1,618 +1,252 @@
 <!doctype html>
 <html lang="en">
- <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GainGrid Spin &amp; Win</title>
-
-  <!-- Monetag SDK (ads) -->
-  <script src='//libtl.com/sdk.js' data-zone='10176108' data-sdk='show_10176108'></script>
-
-  <script src="/_sdk/data_sdk.js"></script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <style>
-    /* (kept all your styles) */
-    body { box-sizing: border-box; margin:0; padding:0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #4a148c 0%, #880e4f 100%); color:#fff; min-height:100%; overflow-x:hidden; }
-    *{box-sizing:border-box}
-    .container{max-width:600px;margin:0 auto;padding:20px}
-    .header{text-align:center;margin-bottom:30px;padding:20px}
-    .header h1{font-size:32px;margin:0 0 10px 0;text-shadow:2px 2px 4px rgba(0,0,0,0.3)}
-    .header p{font-size:16px;margin:0;opacity:0.9}
-    .wheel-container{position:relative;width:100%;max-width:400px;margin:0 auto 30px;aspect-ratio:1;perspective:1200px}
-    .wheel{width:100%;height:100%;border-radius:50%;position:relative;box-shadow:0 12px 50px rgba(0,0,0,0.55), 0 0 60px rgba(0,0,0,0.2) inset;transition:transform 4s cubic-bezier(0.17,0.67,0.12,0.99);border:12px solid rgba(255,215,0,0.15);transform-style:preserve-3d;background:linear-gradient(145deg, rgba(255,255,255,0.03), rgba(0,0,0,0.12))}
-    .wheel-segment{position:absolute;width:50%;height:50%;transform-origin:100% 100%;clip-path:polygon(0 0,100% 0,100% 100%);display:flex;align-items:flex-start;justify-content:center;font-size:11px;font-weight:bold;text-align:center;padding:15px 5px 5px 5px;overflow:hidden;backface-visibility:hidden}
-    .segment-text{transform:rotate(-90deg) translateX(-20px);white-space:nowrap;text-shadow:1px 1px 2px rgba(0,0,0,0.5)}
-    .wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) translateZ(60px);width:80px;height:80px;background:linear-gradient(135deg,#ffd700,#ffed4e);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 10px 40px rgba(0,0,0,0.45), inset 0 6px 18px rgba(255,255,255,0.25);z-index:50}
-    .wheel-pointer{position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:40px solid #ec407a;z-index:60;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3))}
-    .vip-status{background:rgba(255,255,255,0.06);border-radius:15px;padding:20px;margin-bottom:25px;text-align:center;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.06)}
-    .vip-status h3{margin:0 0 10px 0;font-size:20px;color:#ffd700}
-    .vip-status p{margin:0;font-size:14px;line-height:1.5}
-    .controls{background:rgba(255,255,255,0.06);border-radius:15px;padding:25px;margin-bottom:25px;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.06)}
-    .progress-bar{margin-bottom:20px}
-    .progress-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;font-weight:bold}
-    .progress-track{width:100%;height:12px;background:rgba(0,0,0,0.25);border-radius:6px;overflow:hidden}
-    .progress-fill{height:100%;background:linear-gradient(90deg,#00e5ff,#ffd700);border-radius:6px;transition:width 0.3s ease}
-    .button{width:100%;padding:16px;margin-bottom:12px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.3s ease;box-shadow:0 6px 25px rgba(0,0,0,0.4)}
-    .button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.45)}
-    .button:active:not(:disabled){transform:translateY(0)}
-    .button:disabled{opacity:0.5;cursor:not-allowed}
-    .button-primary{background:linear-gradient(135deg,#8e24aa,#ab47bc);color:white}
-    .button-secondary{background:linear-gradient(135deg,#ec407a,#f06292);color:white}
-    .button-tertiary{background:rgba(255,255,255,0.12);color:white;border:2px solid rgba(255,255,255,0.12)}
-    .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:20px}
-    .modal.active{display:flex}
-    .modal-content{background:linear-gradient(135deg,#4a148c,#880e4f);border-radius:20px;padding:40px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:3px solid #ffd700;animation:modalPop 0.3s ease}
-    @keyframes modalPop{0%{transform:scale(0.8);opacity:0}100%{transform:scale(1);opacity:1}}
-    .modal-content h2{font-size:28px;margin:0 0 15px 0;color:#ffd700}
-    .modal-content p{font-size:18px;margin:0 0 25px 0;line-height:1.5}
-    .footer{text-align:center;padding:30px 20px;margin-top:40px;border-top:2px solid rgba(255,255,255,0.08)}
-    .footer p{margin:5px 0;font-size:14px;opacity:0.8}
-    .loading{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* Flying gift box */
-    .gift-box{position:fixed;width:70px;height:70px;right:12%;top:18%;z-index:120;border-radius:10px;display:none;align-items:center;justify-content:center;cursor:pointer;transform-style:preserve-3d;perspective:1000px}
-    .gift-inner{width:100%;height:100%;border-radius:10px;background:linear-gradient(135deg,#fff,#ffd3ff);color:#4a148c;display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,0.45);transform-origin:center}
-    .gift-3d{animation:flyAround 10s linear infinite, floatY 3s ease-in-out infinite;transform-style:preserve-3d}
-    @keyframes floatY{0%{transform:translateZ(0) translateY(0) rotateX(0) rotateY(0)}50%{transform:translateZ(12px) translateY(-6px) rotateX(6deg) rotateY(3deg)}100%{transform:translateZ(0) translateY(0) rotateX(0) rotateY(0)}}
-    @keyframes flyAround{0%{right:10%;top:10%;transform:translateZ(0) rotateY(0)}25%{right:60%;top:12%;transform:translateZ(18px) rotateY(30deg)}50%{right:55%;top:65%;transform:translateZ(6px) rotateY(60deg)}75%{right:12%;top:62%;transform:translateZ(18px) rotateY(90deg)}100%{right:10%;top:10%;transform:translateZ(0) rotateY(0)}}
-
-    @media (max-width:480px){.header h1{font-size:24px}.header p{font-size:14px}.wheel-container{max-width:300px}.wheel-segment{font-size:9px;padding:12px 3px 3px 3px}.segment-text{transform:rotate(-90deg) translateX(-15px)}.modal-content{padding:30px 20px}.modal-content h2{font-size:24px}.modal-content p{font-size:16px}.gift-box{width:58px;height:58px}}
-  </style>
-
-  <style>@view-transition { navigation: auto; }</style>
-  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
- </head>
- <body>
-  <div class="container">
-   <div class="header">
-    <h1 id="main-title">🎡 Spin &amp; Win G-Coins!</h1>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GainGrid Spin & Win</title>
+<script src="/_sdk/data_sdk.js"></script>
+<script src="/_sdk/element_sdk.js"></script>
+<script src='//libtl.com/sdk.js' data-zone='10176108' data-sdk='show_10176108'></script>
+<style>
+  body { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:linear-gradient(135deg,#4a148c 0%,#880e4f 100%); color:#fff; min-height:100%; overflow-x:hidden;}
+  * { box-sizing:border-box;}
+  .container { max-width:600px; margin:0 auto; padding:20px;}
+  .header{text-align:center;margin-bottom:30px;padding:20px;}
+  .header h1{font-size:32px;margin:0 0 10px 0;text-shadow:2px 2px 4px rgba(0,0,0,0.3);}
+  .header p{font-size:16px;margin:0;opacity:0.9;}
+  .wheel-container{position:relative;width:100%;max-width:400px;margin:0 auto 30px;aspect-ratio:1;}
+  .wheel{width:100%;height:100%;border-radius:50%;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.5);transition: transform 4s cubic-bezier(0.17,0.67,0.12,0.99);border:8px solid #ffd700;}
+  .wheel-segment{position:absolute;width:50%;height:50%;transform-origin:100% 100%;clip-path:polygon(0 0,100% 0,100% 100%);display:flex;align-items:flex-start;justify-content:center;font-size:11px;font-weight:bold;text-align:center;padding:15px 5px 5px 5px;overflow:hidden;}
+  .segment-text{transform:rotate(-90deg) translateX(-20px);white-space:nowrap;text-shadow:1px 1px 2px rgba(0,0,0,0.5);}
+  .wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;background:linear-gradient(135deg,#ffd700,#ffed4e);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 15px rgba(0,0,0,0.4);z-index:10;}
+  .wheel-pointer{position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:40px solid #ec407a;z-index:20;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));}
+  .vip-status{background:rgba(255,255,255,0.1);border-radius:15px;padding:20px;margin-bottom:25px;text-align:center;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.2);}
+  .vip-status h3{margin:0 0 10px 0;font-size:20px;color:#ffd700;}
+  .vip-status p{margin:0;font-size:14px;line-height:1.5;}
+  .controls{background:rgba(255,255,255,0.1);border-radius:15px;padding:25px;margin-bottom:25px;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.2);}
+  .progress-bar{margin-bottom:20px;}
+  .progress-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;font-weight:bold;}
+  .progress-track{width:100%;height:12px;background:rgba(0,0,0,0.3);border-radius:6px;overflow:hidden;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#00e5ff,#ffd700);border-radius:6px;transition:width 0.3s ease;}
+  .button{width:100%;padding:16px;margin-bottom:12px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.3s ease;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
+  .button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+  .button:active:not(:disabled){transform:translateY(0);}
+  .button:disabled{opacity:0.5;cursor:not-allowed;}
+  .button-primary{background:linear-gradient(135deg,#8e24aa,#ab47bc);color:white;}
+  .button-secondary{background:linear-gradient(135deg,#ec407a,#f06292);color:white;}
+  .button-tertiary{background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.3);}
+  .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+  .modal.active{display:flex;}
+  .modal-content{background:linear-gradient(135deg,#4a148c,#880e4f);border-radius:20px;padding:40px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:3px solid #ffd700;animation:modalPop 0.3s ease;}
+  @keyframes modalPop{0%{transform:scale(0.8);opacity:0;}100%{transform:scale(1);opacity:1;}}
+  .modal-content h2{font-size:28px;margin:0 0 15px 0;color:#ffd700;}
+  .modal-content p{font-size:18px;margin:0 0 25px 0;line-height:1.5;}
+  .footer{text-align:center;padding:30px 20px;margin-top:40px;border-top:2px solid rgba(255,255,255,0.2);}
+  .footer p{margin:5px 0;font-size:14px;opacity:0.8;}
+  .loading{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .flying-box{position:absolute;width:60px;height:60px;background:linear-gradient(135deg,#ffd700,#ffeb3b);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);z-index:15;animation:flyingMove 10s ease-in-out infinite alternate;}
+  @keyframes flyingMove{0%{transform:translate3d(0,0,0) rotateY(0deg);}50%{transform:translate3d(150px,-50px,50px) rotateY(180deg);}100%{transform:translate3d(0,0,0) rotateY(360deg);}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1 id="main-title">🎡 Spin & Win G-Coins!</h1>
     <p id="subtitle">Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!</p>
-   </div>
-
-   <div class="wheel-container">
+  </div>
+  <div class="wheel-container">
     <div class="wheel-pointer"></div>
     <div class="wheel" id="wheel"></div>
     <div class="wheel-center">🎡</div>
-   </div>
-
-   <div class="vip-status" id="vip-status">
+    <div class="flying-box" id="flying-box" title="+3 Spins">🎁</div>
+  </div>
+  <div class="vip-status" id="vip-status">
     <h3>VIP Status</h3>
     <p id="vip-message">Loading...</p>
-   </div>
-
-   <div class="controls">
+  </div>
+  <div class="controls">
     <div class="progress-bar">
-     <div class="progress-label"><span>Daily Spins</span> <span id="spins-count">0/10</span></div>
-     <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="progress-label"><span>Daily Spins</span> <span id="spins-count">0/10</span></div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
     </div>
-    <button class="button button-primary" id="spin-button"> 🌀 Spin Now </button>
-    <button class="button button-tertiary" id="refresh-button"> 🔄 Refresh Wheel </button>
-   </div>
+    <button class="button button-primary" id="spin-button">🌀 Spin Now</button>
+    <button class="button button-tertiary" id="refresh-button">🔄 Refresh Wheel</button>
   </div>
-
-  <!-- Flying gift box -->
-  <div class="gift-box" id="giftBox" title="Lucky Gift — click to open">
-    <div class="gift-inner gift-3d" id="giftInner">🎁</div>
-  </div>
-
-  <div class="footer">
-   <p id="footer-text">© GainGrid 2025 | All rights reserved</p>
-   <p id="support-links">Telegram Support | Privacy Policy</p>
-  </div>
-
-  <div class="modal" id="result-modal">
-   <div class="modal-content">
+</div>
+<div class="footer">
+  <p id="footer-text">© GainGrid 2025 | All rights reserved</p>
+  <p id="support-links">Telegram Support | Privacy Policy</p>
+</div>
+<div class="modal" id="result-modal">
+  <div class="modal-content">
     <h2 id="modal-title">🎉 Congratulations!</h2>
     <p id="modal-message">You won something amazing!</p>
     <button class="button button-primary" id="modal-close">Continue</button>
-   </div>
   </div>
+</div>
 
-  <script>
-    /* ---------- existing config & rewards (kept) ---------- */
-    const defaultConfig = {
-      main_title: "🎡 Spin & Win G-Coins!",
-      subtitle: "Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!",
-      footer_text: "© GainGrid 2025 | All rights reserved",
-      support_links: "Telegram Support | Privacy Policy"
-    };
+<script>
+const defaultConfig = { main_title:"🎡 Spin & Win G-Coins!", subtitle:"Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!", footer_text:"© GainGrid 2025 | All rights reserved", support_links:"Telegram Support | Privacy Policy"};
+const wheelSegments=[{text:"+50 G-Coins",color:"#8e24aa",value:50,type:"coins"},{text:"+100 G-Coins",color:"#ab47bc",value:100,type:"coins"},{text:"+200 G-Coins",color:"#ba68c8",value:200,type:"coins"},{text:"🎁 Mystery Box",color:"#ce93d8",value:0,type:"mystery"},{text:"🥉 Basic VIP",color:"#ffd700",value:0,type:"vip_basic"},{text:"Try Again",color:"#ec407a",value:0,type:"nothing"},{text:"🔁 Spin x2",color:"#f06292",value:0,type:"double_spin"},{text:"🔥 Bonus x2",color:"#f48fb1",value:0,type:"multiplier"},{text:"🧊 Cooldown Cut",color:"#00e5ff",value:0,type:"cooldown"},{text:"+500 G-Coins",color:"#9c27b0",value:500,type:"coins"}];
 
-    const wheelSegments = [
-      { text: "+50 G-Coins", color: "#8e24aa", value: 50, type: "coins" },
-      { text: "+100 G-Coins", color: "#ab47bc", value: 100, type: "coins" },
-      { text: "+200 G-Coins", color: "#ba68c8", value: 200, type: "coins" },
-      { text: "🎁 Mystery Box", color: "#ce93d8", value: 0, type: "mystery" },
-      { text: "🥉 Basic VIP", color: "#ffd700", value: 0, type: "vip_basic" },
-      { text: "Try Again", color: "#ec407a", value: 0, type: "nothing" },
-      { text: "🔁 Spin x2", color: "#f06292", value: 0, type: "double_spin" },
-      { text: "🔥 Bonus x2", color: "#f48fb1", value: 0, type: "multiplier" },
-      { text: "🧊 Cooldown Cut", color: "#00e5ff", value: 0, type: "cooldown" },
-      { text: "+500 G-Coins", color: "#9c27b0", value: 500, type: "coins" }
-    ];
+let currentSegments=[...wheelSegments], userData=null, isSpinning=false, vipStartDate=null;
+const dataHandler={onDataChanged(data){if(data.length>0){userData=data[0];checkDailyReset();updateUI();}}};
 
-    /* ---------- state ---------- */
-    let currentSegments = [...wheelSegments];
-    let userData = null;
-    let isSpinning = false;
-    let telegramUserId = null;
+async function initializeApp(){
+  const initResult=await window.dataSdk.init(dataHandler);
+  if(!initResult.isOk){console.error("Failed to init SDK");return;}
+  if(!userData){const today=new Date().toISOString().split('T')[0];await window.dataSdk.create({id:"user_spin_data",spins_used:0,last_reset_date:today,total_coins_won:0,vip_status:"free",vip_expiry:""});}
+  shuffleWheel();renderWheel();setupEventListeners();loadFlyingBoxAds();
+}
 
-    /* ---------- Deeplink / auto-open handling (NEW) ---------- */
+function checkDailyReset(){
+  const today=new Date().toISOString().split('T')[0];
+  if(userData.last_reset_date!==today){userData.spins_used=0;userData.last_reset_date=today;window.dataSdk.update(userData);}
+}
 
-    // Try to decode base64 or JSON safely
-    function tryParseJSONorB64(input) {
-      if (!input) return null;
-      let s = String(input).trim();
-      if ((s.startsWith('{') && s.endsWith('}')) || (s.startsWith('[') && s.endsWith(']'))) {
-        try { return JSON.parse(s); } catch(e) {}
-      }
-      try {
-        const dec = decodeURIComponent(s);
-        if ((dec.startsWith('{') && dec.endsWith('}')) || (dec.startsWith('[') && dec.endsWith(']'))) {
-          return JSON.parse(dec);
-        }
-      } catch(e){}
-      try {
-        let b = s.replace(/-/g,'+').replace(/_/g,'/');
-        b = b + '='.repeat((4 - (b.length % 4)) % 4);
-        let raw = atob(b);
-        try { raw = decodeURIComponent(escape(raw)); } catch(e){}
-        if ((raw.startsWith('{') && raw.endsWith('}')) || (raw.startsWith('[') && raw.endsWith(']'))) {
-          return JSON.parse(raw);
-        } else {
-          return raw;
-        }
-      } catch(e){}
-      return null;
-    }
+function shuffleWheel(){currentSegments=[...wheelSegments].sort(()=>Math.random()-0.5);}
+function renderWheel(){const wheel=document.getElementById('wheel');wheel.innerHTML='';const segmentAngle=360/currentSegments.length;currentSegments.forEach((segment,index)=>{const segmentDiv=document.createElement('div');segmentDiv.className='wheel-segment';segmentDiv.style.background=segment.color;segmentDiv.style.transform=`rotate(${index*segmentAngle}deg)`;const textSpan=document.createElement('span');textSpan.className='segment-text';textSpan.textContent=segment.text;segmentDiv.appendChild(textSpan);wheel.appendChild(segmentDiv);});}
 
-    function parseDeeplinkPayload() {
-      try {
-        const qs = new URLSearchParams(location.search || '');
-        const candidates = [];
-        ['start','data','s','p','payload'].forEach(k => { if (qs.get(k)) candidates.push(qs.get(k)); });
-        if (location.hash) {
-          let rawHash = location.hash.replace(/^#/,'');
-          let hashQs = rawHash.split('?').slice(1).join('?');
-          if (hashQs) {
-            const hparams = new URLSearchParams(hashQs);
-            ['data','start','s','p','payload'].forEach(k => { if (hparams.get(k)) candidates.push(hparams.get(k)); });
-          } else {
-            candidates.push(rawHash);
-          }
-        }
-        if (location.search && location.search.length>1) {
-          const raw = location.search.replace(/^\?/,'');
-          candidates.push(raw);
-        }
-        for (const c of candidates) {
-          const parsed = tryParseJSONorB64(c);
-          if (parsed && typeof parsed === 'object') return parsed;
-        }
-        return null;
-      } catch (e) {
-        console.warn('parseDeeplinkPayload err', e);
-        return null;
-      }
-    }
+function updateUI(){
+  if(!userData) return;
+  const spinsLeft=10-userData.spins_used;
+  document.getElementById('spins-count').textContent=`${spinsLeft}/10`;
+  const progressPercent=(spinsLeft/10)*100;document.getElementById('progress-fill').style.width=`${progressPercent}%`;
+  const spinButton=document.getElementById('spin-button');
+  if(userData.spins_used>=2&&spinsLeft===0){spinButton.textContent='▶️ Watch Ad to Unlock Spin';spinButton.className='button button-secondary';spinButton.disabled=isSpinning;spinButton.onclick=watchAd;}
+  else if(spinsLeft===0){spinButton.textContent='🌀 No Spins Left';spinButton.className='button button-primary';spinButton.disabled=true;spinButton.onclick=spinWheel;}
+  else{spinButton.textContent='🌀 Spin Now';spinButton.className='button button-primary';spinButton.disabled=isSpinning;spinButton.onclick=spinWheel;}
+  updateVIPStatus();
+}
 
-    async function safeText(resp){
-      try { return resp ? await resp.text() : null; } catch(e) { return null; }
-    }
+function updateVIPStatus(){
+  const vipMessage=document.getElementById('vip-message');if(!vipStartDate){vipStartDate=new Date();} const daysDiff=Math.floor((new Date()-vipStartDate)/86400000);
+  if(daysDiff<3){vipMessage.textContent="VIP badge not available yet. Keep spinning for 3-4 days.";}else if(userData.vip_status==="free"){vipMessage.textContent="You're currently a Free User. Win a VIP on the wheel or upgrade in your dashboard.";}
+  else if(userData.vip_status==="basic"){vipMessage.textContent="You're 🥉 Basic VIP — Spin now for a chance to upgrade to 🥈 Silver!";}
+  else if(userData.vip_status==="silver"){vipMessage.textContent="You're 🥈 Silver VIP — Spin now for a chance to upgrade to 🥇 Gold!";}
+  else if(userData.vip_status==="gold"){vipMessage.textContent="You're 🥇 Gold VIP — Maximum tier unlocked! Enjoy premium rewards!";}
+}
 
-    // prefer webhook from incoming payload when posting to bot
-    async function postToCallbackOrWebhook(wrapper, callbackUrlCandidate) {
-      try {
-        const incoming = window.__gaingrid_incoming || null;
-        const candidate = callbackUrlCandidate || (incoming && (incoming.callback_url || incoming.callbackUrl || incoming.webhook || incoming.callbackurl)) || '<% options.url %>';
-        if (!candidate) { console.warn('No webhook/callback url to post to.'); return { ok:false, error:'no_target' }; }
-        const resp = await fetch(candidate, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(wrapper),
-          keepalive: true
-        });
-        return { ok: resp && resp.ok, status: resp && resp.status, text: await safeText(resp) };
-      } catch (e) {
-        console.error('postToCallbackOrWebhook err', e);
-        return { ok:false, error:String(e) };
-      }
-    }
+async function spinWheel(){
+  if(isSpinning||userData.spins_used>=10) return;
+  isSpinning=true;const spinButton=document.getElementById('spin-button');spinButton.disabled=true;spinButton.innerHTML='<span class="loading"></span>';
+  const wheel=document.getElementById('wheel');const segmentAngle=360/currentSegments.length;const randomIndex=Math.floor(Math.random()*currentSegments.length);const targetRotation=360*5+(randomIndex*segmentAngle)+(segmentAngle/2);
+  wheel.style.transform=`rotate(${targetRotation}deg)`;
+  setTimeout(async()=>{
+    const winningSegment=currentSegments[randomIndex];await processWin(winningSegment);
+    wheel.style.transform='rotate(0deg)';wheel.style.transition='none';
+    setTimeout(()=>{wheel.style.transition='transform 4s cubic-bezier(0.17,0.67,0.12,0.99)';},50);
+    isSpinning=false;spinButton.innerHTML='🌀 Spin Now';updateUI();
+  },4000);
+}
 
-    async function postToBotWebhook(wrapper) {
-      // wrapper will be posted to incoming callback/webhook if available, else fallback
-      return postToCallbackOrWebhook(wrapper, null);
-    }
+async function processWin(segment){
+  userData.spins_used+=1;
+  let modalTitle="🎉 Congratulations!";let modalMessage="";
+  switch(segment.type){
+    case "coins":userData.total_coins_won+=segment.value;modalTitle="💰 You Won!";modalMessage=`You won +${segment.value} G-Coins!\n✅ Credited to your wallet`;break;
+    case "vip_basic":userData.vip_status="basic";const expiryDate=new Date();expiryDate.setDate(expiryDate.getDate()+7);userData.vip_expiry=expiryDate.toISOString();modalTitle="👑 VIP Unlocked!";modalMessage="You won 🥉 Basic VIP (7-day access)\n✅ Activated now!";break;
+    case "mystery":const mysteryCoins=Math.floor(Math.random()*300)+100;userData.total_coins_won+=mysteryCoins;modalTitle="🎁 Mystery Box!";modalMessage=`You found +${mysteryCoins} G-Coins inside!\n✅ Credited to your wallet`;break;
+    case "double_spin":userData.spins_used-=1;modalTitle="🔁 Bonus Spin!";modalMessage="You won an extra spin!\n✅ Spin again now!";break;
+    case "multiplier":modalTitle="🔥 Multiplier Active!";modalMessage="Your next coin win will be doubled!\n✅ Spin again to activate!";break;
+    case "cooldown":modalTitle="🧊 Cooldown Cut!";modalMessage="Spin cooldown reduced!\n✅ Spin faster now!";break;
+    case "nothing":modalTitle="😅 Try Again!";modalMessage="Better luck next time!\n🎡 Keep spinning for rewards!";break;
+  }
+  await window.dataSdk.update(userData);
+  sendPostback(segment);
+  showModal(modalTitle,modalMessage);
+}
 
-    function startAutoValidationFlow(payload) {
-      try {
-        if (!payload) return;
-        const secs = Number(payload.secs || payload.seconds || payload.duration || 0);
-        const adId = payload.ad_id || payload.adid || payload.id;
-        const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
-        const callback = payload.callback_url || payload.callbackUrl || payload.webhook || payload.callbackurl;
-        window.__gaingrid_incoming = payload;
-        if (secs > 0) {
-          const vipMessageEl = document.getElementById('vip-message');
-          if (vipMessageEl) vipMessageEl.textContent = `Ad playing... (${secs}s) — page will auto-validate when done.`;
-          let remaining = secs;
-          const interval = setInterval(()=> {
-            remaining--;
-            if (vipMessageEl) vipMessageEl.textContent = `Ad playing... (${remaining}s) — page will auto-validate when done.`;
-            if (remaining <= 0) { clearInterval(interval); }
-          }, 1000);
-          setTimeout(async ()=> {
-            const wrapper = {
-              action: 'ads_validate',
-              payload: {
-                ad_id: adId,
-                user_id: userId,
-                status: 'ad_complete',
-                secs: secs,
-                reward: payload.reward || payload.rewards || payload.amount || null,
-                ts: new Date().toISOString()
-              },
-              meta: { from_hosted: true, auto: true }
-            };
-            const res = await postToCallbackOrWebhook(wrapper, callback);
-            console.log('auto validation POST result', res);
-            try { const vipEl = document.getElementById('vip-message'); if (vipEl) vipEl.textContent = 'Ad validated — thank you!'; } catch(e){}
-            if (res && res.ok) {
-              showModal('✅ Ad Verified','Thanks — reward will be credited shortly.');
-              setTimeout(()=> { closeModal(); try { if (window.Telegram && Telegram.WebApp) Telegram.WebApp.close(); } catch(e){} }, 1400);
-            } else {
-              showModal('⚠️ Validation Failed','Could not notify bot. Please try again or contact support.');
-            }
-          }, secs*1000 + 300);
-        } else {
-          const wrapper = {
-            action: 'ads_validate',
-            payload: { ad_id: adId, user_id: userId, status: 'ad_complete', secs: 0, ts: new Date().toISOString() },
-            meta: { from_hosted: true, auto: true }
-          };
-          postToCallbackOrWebhook(wrapper, callback).then(res => console.log('immediate validation result', res));
-        }
-        setupSkipOnClose(payload);
-      } catch (e) { console.error('startAutoValidationFlow err', e); }
-    }
+function showModal(title,message){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-message').textContent=message;document.getElementById('result-modal').classList.add('active');
+}
 
-    function setupSkipOnClose(payload) {
-      let alreadySent = false;
-      const callback = payload.callback_url || payload.callbackUrl || payload.webhook || payload.callbackurl;
-      function handler(e) {
-        try {
-          if (alreadySent) return;
-          alreadySent = true;
-          const adId = payload.ad_id || payload.adid || payload.id;
-          const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
-          const wrapper = { action:'ads_validate', payload: { ad_id:adId, user_id:userId, status:'ad_skipped', ts:new Date().toISOString() }, meta:{ from_hosted:true, reason:'closed' } };
-          try {
-            const target = callback || (window.__gaingrid_incoming && (window.__gaingrid_incoming.callback_url||window.__gaingrid_incoming.webhook)) || '<% options.url %>';
-            const blob = new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
-            if (navigator && navigator.sendBeacon) { navigator.sendBeacon(target, blob); }
-            else { fetch(target, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(wrapper), keepalive:true }); }
-          } catch (err) { console.warn('skip-on-close post failed', err); }
-        } catch(e){}
-      }
-      window.addEventListener('beforeunload', handler);
-      window.addEventListener('pagehide', handler);
-    }
+document.getElementById('modal-close').addEventListener('click',()=>{
+  document.getElementById('result-modal').classList.remove('active');
+  updateUI();
+});
 
-    // helpers for parsing incoming data from page deeplink
-    function getTelegramUserId() {
-      try {
-        if (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) {
-          return Telegram.WebApp.initDataUnsafe.user.id;
-        }
-      } catch (e) {}
-      return null;
-    }
+function sendPostback(segment){
+  if(!userData) return;
+  const ymid = userData.user_id || "user123";
+  const eventType = segment.type==="nothing"?"click":"yes";
+  const estimated_price = (segment.value/10000).toFixed(5);
+  const url=`https://your-backend.com/postback?ymid=${ymid}&event=${eventType}&zone_id=10176108&request_var=spin_wheel&telegram_id=${userData.user_id}&estimated_price=${estimated_price}`;
+  fetch(url).then(res=>console.log("Postback sent:",url)).catch(err=>console.error("Postback error:",err));
+}
 
-    // dataSdk handler (kept)
-    const dataHandler = {
-      onDataChanged(data) {
-        if (data && data.length > 0) {
-          userData = data[0];
-          checkDailyReset();
-          updateUI();
-        }
-      }
-    };
+// Flying Box Logic
+const flyingBox=document.getElementById('flying-box');
+flyingBox.addEventListener('click',async()=>{
+  userData.spins_used=Math.max(userData.spins_used-3,0);
+  await window.dataSdk.update(userData);
+  showModal("🎁 Surprise Box!","+3 Spins added to your account!");
+  loadFlyingBoxAds();
+});
 
-    // initialize app (kept)
-    async function initializeApp() {
-      telegramUserId = getTelegramUserId();
-      // parse deeplink payload if exists and start auto validation flow
-      const incoming = parseDeeplinkPayload();
-      if (incoming) {
-        console.log('Deeplink payload detected:', incoming);
-        // Save incoming globally (already done in startAutoValidationFlow)
-        startAutoValidationFlow(incoming);
-        // Seed some UI state from incoming (vip_level, user id)
-        try {
-          window.__gaingrid_incoming = incoming;
-          if (incoming.vip_level || incoming.vipLevel) {
-            // seed vip status but don't overwrite existing longer VIPs
-            const seededVip = (incoming.vip_level || incoming.vipLevel).toString().toLowerCase();
-            if (!userData) userData = {};
-            if (!userData.vip_status || userData.vip_status === 'free') userData.vip_status = seededVip;
-          }
-          if (incoming.user_id || incoming.userid || (incoming.user && incoming.user.user_id)) {
-            telegramUserId = incoming.user_id || incoming.userid || (incoming.user && incoming.user.user_id) || telegramUserId;
-          }
-        } catch(e) { console.warn('seed incoming error', e); }
-      }
+function loadFlyingBoxAds(){
+  // Rewarded Popup
+  show_10176108('pop').then(()=>{
+    console.log("Flying box ad displayed");
+  }).catch(e=>{console.error("Ad error",e);});
+}
 
-      const initResult = await window.dataSdk.init(dataHandler);
-      if (!initResult.isOk) {
-        console.error("Failed to initialize data SDK");
-        const today = new Date().toISOString().split('T')[0];
-        userData = { id:"user_spin_data", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"" };
-      } else {
-        if (!userData) {
-          const today = new Date().toISOString().split('T')[0];
-          const createResult = await window.dataSdk.create({ id: "user_spin_data", spins_used:0, last_reset_date:today, total_coins_won:0, vip_status:"free", vip_expiry:"" });
-          if (createResult.isOk) userData = createResult.data;
-        }
-      }
+// Watch Ads Button
+async function watchAd(){
+  const spinButton=document.getElementById('spin-button');
+  spinButton.disabled=true;
+  spinButton.innerHTML='<span class="loading"></span> Loading Ad...';
+  try{
+    await show_10176108(); // Rewarded interstitial
+    userData.spins_used=Math.max(userData.spins_used-2,0);
+    await window.dataSdk.update(userData);
+    showModal("🎉 Ad Completed!","+2 Spins added to your account!");
+  }catch(e){
+    console.error("Ad failed",e);
+    showModal("⚠️ Ad Failed","Could not load ad. Try again later.");
+  }finally{
+    updateUI();
+  }
+}
 
-      // render wheel & UI
-      shuffleWheel();
-      renderWheel();
-      setupEventListeners();
-      updateUI();
+// Load Smartlink Ads (optional popunder)
+function loadSmartlinks(){
+  setTimeout(()=>{
+    const iframe1=document.createElement('iframe');
+    iframe1.src="https://otieu.com/4/10176185";
+    iframe1.style.display="none";document.body.appendChild(iframe1);
+    const iframe2=document.createElement('iframe');
+    iframe2.src="https://otieu.com/4/10176155";
+    iframe2.style.display="none";document.body.appendChild(iframe2);
+  },15000);
+}
 
-      // maybe show gift box if at 9/10
-      maybeShowGiftBox();
-    }
+// Event Listeners
+function setupEventListeners(){
+  document.getElementById('refresh-button').addEventListener('click',()=>{
+    shuffleWheel();
+    renderWheel();
+  });
+}
 
-    function checkDailyReset() {
-      if (!userData) return;
-      const today = new Date().toISOString().split('T')[0];
-      if (userData.last_reset_date !== today) {
-        userData.spins_used = 0;
-        userData.last_reset_date = today;
-        window.dataSdk.update(userData);
-      }
-    }
+// Decode Base64 / watch_ads data
+function decodeWatchAdsData(encoded){
+  try{
+    const decoded=atob(encoded);
+    return JSON.parse(decoded);
+  }catch(e){
+    console.error("Invalid watch_ads data:",encoded,e);
+    return {};
+  }
+}
 
-    function shuffleWheel() {
-      currentSegments = [...wheelSegments].sort(() => Math.random() - 0.5);
-    }
-
-    function renderWheel() {
-      const wheel = document.getElementById('wheel');
-      wheel.innerHTML = '';
-      const segmentAngle = 360 / currentSegments.length;
-      currentSegments.forEach((segment, index) => {
-        const segmentDiv = document.createElement('div');
-        segmentDiv.className = 'wheel-segment';
-        segmentDiv.style.background = segment.color;
-        segmentDiv.style.transform = `rotate(${index * segmentAngle}deg) skewY(${-(90 - segmentAngle)}deg) translateZ(0)`;
-        const textSpan = document.createElement('span');
-        textSpan.className = 'segment-text';
-        textSpan.textContent = segment.text;
-        segmentDiv.appendChild(textSpan);
-        wheel.appendChild(segmentDiv);
-      });
-    }
-
-    async function postToBotWebhook(wrapper) {
-      return postToCallbackOrWebhook(wrapper, null);
-    }
-
-    async function processWin(segment) {
-      if (!userData) return;
-      userData.spins_used = (userData.spins_used || 0) + 1;
-      const resultPayload = { action:'spin_result', payload:{ user_id: telegramUserId || (userData && userData.telegram_id) || null, segment_type: segment.type, value: segment.value||0, text: segment.text, spins_used: userData.spins_used, ts: new Date().toISOString() }, meta:{ from_frontend:true } };
-      let modalTitle = "🎉 Congratulations!", modalMessage = "";
-      switch(segment.type) {
-        case "coins":
-          userData.total_coins_won = (userData.total_coins_won || 0) + (segment.value||0);
-          modalTitle = "💰 You Won!"; modalMessage = `You won +${segment.value} G-Coins!\n✅ Credited to your wallet`; break;
-        case "vip_basic":
-          userData.vip_status = "basic"; const expiryDate = new Date(); expiryDate.setDate(expiryDate.getDate()+7); userData.vip_expiry = expiryDate.toISOString(); modalTitle="👑 VIP Unlocked!"; modalMessage="You won 🥉 Basic VIP (7-day access)\n✅ Activated now!"; break;
-        case "mystery":
-          const mysteryCoins = Math.floor(Math.random()*300)+100; userData.total_coins_won = (userData.total_coins_won||0)+mysteryCoins; modalTitle="🎁 Mystery Box!"; modalMessage=`You found +${mysteryCoins} G-Coins inside!\n✅ Credited to your wallet`; resultPayload.payload.value = mysteryCoins; break;
-        case "double_spin":
-          userData.spins_used = Math.max(0, userData.spins_used - 1); modalTitle="🔁 Bonus Spin!"; modalMessage="You won an extra spin!\n✅ Spin again now!"; break;
-        case "multiplier":
-          userData.next_multiplier = (userData.next_multiplier || 1)*2; modalTitle="🔥 Multiplier Active!"; modalMessage="Your next coin win will be doubled!\n✅ Spin again to activate!"; break;
-        case "cooldown":
-          userData.cooldown_cut = true; modalTitle="🧊 Cooldown Cut!"; modalMessage="Spin cooldown reduced!\n✅ Spin faster now!"; break;
-        case "nothing":
-        default:
-          modalTitle="😅 Try Again!"; modalMessage="Better luck next time!\n🎡 Keep spinning for rewards!"; break;
-      }
-      const updateResult = await window.dataSdk.update(userData).catch(e=>({isOk:false}));
-      if (!updateResult || !updateResult.isOk) console.error("Failed to update user data in dataSdk");
-      try { const wbRes = await postToBotWebhook(resultPayload); console.log('Webhook post result:', wbRes); } catch(e){ console.warn('Webhook err', e); }
-      showModal(modalTitle, modalMessage);
-      maybeShowGiftBox();
-
-      // If user has completed all spins, send final summary to bot (using incoming callback)
-      if ((userData.spins_used || 0) >= 10) {
-        const finalWrapper = {
-          action: 'daily_spin_complete',
-          payload: {
-            user_id: telegramUserId || (userData && userData.telegram_id) || null,
-            vip_status: userData.vip_status || 'free',
-            spins_used: userData.spins_used || 10,
-            total_coins_won: userData.total_coins_won || 0,
-            ts: new Date().toISOString()
-          },
-          meta: { from_frontend: true }
-        };
-        try { await postToBotWebhook(finalWrapper); } catch(e){ console.warn('final post err', e); }
-      }
-    }
-
-    function maybeShowGiftBox() {
-      const gift = document.getElementById('giftBox');
-      if (!userData) { gift.style.display = 'none'; return; }
-      const spinsUsed = userData.spins_used || 0;
-      if (spinsUsed === 9) gift.style.display = 'flex'; else gift.style.display = 'none';
-    }
-
-    document.addEventListener('DOMContentLoaded', ()=> {
-      const gift = document.getElementById('giftBox');
-      gift && gift.addEventListener('click', async ()=> {
-        try {
-          if (typeof show_10176108 === 'function') {
-            show_10176108('pop').then(async ()=> {
-              if (userData) {
-                userData.spins_used = Math.max(0, (userData.spins_used||0)-3);
-                await window.dataSdk.update(userData);
-                const wrapper = { action:'giftbox_opened', payload:{ user_id: telegramUserId || null, reward_spins:3, spins_used: userData.spins_used, ts: new Date().toISOString() } };
-                await postToCallbackOrWebhook(wrapper, (window.__gaingrid_incoming && (window.__gaingrid_incoming.callback_url||window.__gaingrid_incoming.webhook)) || null);
-                showModal("🎁 Gift Opened!", "You received +3 spins!");
-                maybeShowGiftBox();
-                updateUI();
-              }
-            }).catch(err => { console.warn('Ad error', err); showModal("⚠️ Ad Error","Could not load ad. Try again later."); });
-          } else {
-            if (userData) {
-              userData.spins_used = Math.max(0, (userData.spins_used||0)-3);
-              await window.dataSdk.update(userData);
-              const wrapper = { action:'giftbox_opened', payload:{ user_id: telegramUserId||null, reward_spins:3, spins_used:userData.spins_used, ts:new Date().toISOString() } };
-              await postToCallbackOrWebhook(wrapper, (window.__gaingrid_incoming && (window.__gaingrid_incoming.callback_url||window.__gaingrid_incoming.webhook)) || null);
-              showModal("🎁 Gift Opened!", "You received +3 spins!");
-              maybeShowGiftBox();
-              updateUI();
-            }
-          }
-        } catch(e) { console.error('gift click err', e); }
-      });
-    });
-
-    async function watchAd() {
-      try {
-        showModal("📺 Watching Ad...", "Please wait while the ad plays...\n⏳ This will take a few seconds");
-        if (typeof show_10176108 === 'function') {
-          await show_10176108();
-          if (userData && (userData.spins_used > 0)) {
-            userData.spins_used = Math.max(0, userData.spins_used - 1);
-            await window.dataSdk.update(userData);
-            const wrapper = { action:'ad_reward', payload:{ user_id: telegramUserId||null, reward_spins:1, spins_used:userData.spins_used, ts:new Date().toISOString() } };
-            await postToCallbackOrWebhook(wrapper, (window.__gaingrid_incoming && (window.__gaingrid_incoming.callback_url||window.__gaingrid_incoming.webhook)) || null);
-            closeModal();
-            showModal("✅ Spin Unlocked!", "Ad watched successfully!\n🎡 You earned 1 free spin!");
-            setTimeout(()=>{ closeModal(); updateUI(); }, 1600);
-          } else { closeModal(); showModal("✅ Ad Completed","Thanks! You are already eligible."); setTimeout(closeModal,1200); }
-        } else {
-          setTimeout(async ()=> {
-            if (userData) {
-              userData.spins_used = Math.max(0, (userData.spins_used||0)-1);
-              await window.dataSdk.update(userData);
-              await postToCallbackOrWebhook({ action:'ad_reward', payload:{ user_id:telegramUserId||null, reward_spins:1, ts:new Date().toISOString() } }, (window.__gaingrid_incoming && (window.__gaingrid_incoming.callback_url||window.__gaingrid_incoming.webhook)) || null);
-              closeModal();
-              showModal("✅ Spin Unlocked!", "Ad simulated: you earned 1 free spin!");
-              setTimeout(()=>{ closeModal(); updateUI(); }, 1200);
-            }
-          },2000);
-        }
-      } catch(e) { console.error('watchAd error', e); closeModal(); showModal("⚠️ Ad Error","Could not show ad. Try again later."); }
-    }
-
-    function updateUI() {
-      if (!userData) return;
-      const spinsLeft = Math.max(0, 10 - (userData.spins_used || 0));
-      document.getElementById('spins-count').textContent = `${spinsLeft}/10`;
-      const progressPercent = ((userData.spins_used || 0) / 10) * 100;
-      document.getElementById('progress-fill').style.width = `${progressPercent}%`;
-      const spinButton = document.getElementById('spin-button');
-      if ((userData.spins_used || 0) >= 2 && spinsLeft === 0) {
-        spinButton.textContent = '▶️ Watch Ad to Unlock Spin';
-        spinButton.className = 'button button-secondary';
-        spinButton.disabled = isSpinning;
-        spinButton.onclick = watchAd;
-      } else if (spinsLeft === 0) {
-        spinButton.textContent = '🌀 No Spins Left';
-        spinButton.className = 'button button-primary';
-        spinButton.disabled = true;
-        spinButton.onclick = spinWheel;
-      } else {
-        spinButton.textContent = '🌀 Spin Now';
-        spinButton.className = 'button button-primary';
-        spinButton.disabled = isSpinning;
-        spinButton.onclick = spinWheel;
-      }
-      updateVIPStatus();
-      maybeShowGiftBox();
-    }
-
-    function updateVIPStatus() {
-      const vipMessage = document.getElementById('vip-message');
-      if (!userData) { vipMessage.textContent = "Loading..."; return; }
-      if (userData.vip_status === "free") { vipMessage.textContent = "You're currently a Free User. Win a VIP on the wheel or upgrade in your dashboard."; }
-      else if (userData.vip_status === "basic") { vipMessage.textContent = "You're 🥉 Basic VIP — Spin now for a chance to upgrade to 🥈 Silver!"; }
-      else if (userData.vip_status === "silver") { vipMessage.textContent = "You're 🥈 Silver VIP — Spin now for a chance to upgrade to 🥇 Gold!"; }
-      else if (userData.vip_status === "gold") { vipMessage.textContent = "You're 🥇 Gold VIP — Maximum tier unlocked! Enjoy premium rewards!"; }
-    }
-
-    function showModal(title, message) { document.getElementById('modal-title').textContent = title; document.getElementById('modal-message').textContent = message; document.getElementById('result-modal').classList.add('active'); }
-    function closeModal() { document.getElementById('result-modal').classList.remove('active'); }
-
-    function refreshWheel() { if (isSpinning) return; shuffleWheel(); renderWheel(); showModal("🔄 Wheel Refreshed!", "Segments have been shuffled!\n🎡 Try your luck again!"); }
-
-    function setupEventListeners() {
-      document.getElementById('spin-button').addEventListener('click', spinWheel);
-      document.getElementById('refresh-button').addEventListener('click', refreshWheel);
-      document.getElementById('modal-close').addEventListener('click', closeModal);
-    }
-
-    async function spinWheel() {
-      if (isSpinning || !userData || (userData.spins_used >= 10)) return;
-      isSpinning = true;
-      const spinButton = document.getElementById('spin-button');
-      spinButton.disabled = true;
-      spinButton.innerHTML = '<span class="loading"></span>';
-      const wheel = document.getElementById('wheel');
-      const segmentAngle = 360 / currentSegments.length;
-      const randomIndex = Math.floor(Math.random() * currentSegments.length);
-      const targetRotation = 360 * 5 + (randomIndex * segmentAngle) + (segmentAngle / 2);
-      wheel.style.transition = 'transform 4s cubic-bezier(0.17,0.67,0.12,0.99)';
-      wheel.style.transform = `rotate(${targetRotation}deg) translateZ(0)`;
-      setTimeout(async ()=> {
-        const winningSegment = currentSegments[randomIndex];
-        await processWin(winningSegment);
-        wheel.style.transition = 'none';
-        wheel.style.transform = 'rotate(0deg)';
-        setTimeout(()=>{ wheel.style.transition = 'transform 4s cubic-bezier(0.17,0.67,0.12,0.99)'; },50);
-        isSpinning = false;
-        spinButton.innerHTML = '🌀 Spin Now';
-        updateUI();
-      },4000);
-    }
-
-    // elementSdk integration (kept)
-    async function onConfigChange(config) {
-      document.getElementById('main-title').textContent = config.main_title || defaultConfig.main_title;
-      document.getElementById('subtitle').textContent = config.subtitle || defaultConfig.subtitle;
-      document.getElementById('footer-text').textContent = config.footer_text || defaultConfig.footer_text;
-      document.getElementById('support-links').textContent = config.support_links || defaultConfig.support_links;
-    }
-
-    if (window.elementSdk) {
-      window.elementSdk.init({
-        defaultConfig,
-        onConfigChange,
-        mapToCapabilities: (config)=>({ recolorables:[], borderables:[], fontEditable:undefined, fontSizeable:undefined }),
-        mapToEditPanelValues: (config)=> new Map([
-          ["main_title", config.main_title || defaultConfig.main_title],
-          ["subtitle", config.subtitle || defaultConfig.subtitle],
-          ["footer_text", config.footer_text || defaultConfig.footer_text],
-          ["support_links", config.support_links || defaultConfig.support_links]
-        ])
-      });
-    }
-
-    // kick off
-    initializeApp();
-  </script>
-
-  <!-- Cloudflare challenge iframe snippet (kept) -->
-  <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'99d5ba394774a49a',t:'MTc2Mjk0NzM0Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
-
- </body>
+// Initialize App
+initializeApp();
+loadSmartlinks();
+</script>
+</body>
 </html>
