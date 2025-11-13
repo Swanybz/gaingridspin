@@ -1,252 +1,269 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GainGrid Spin & Win</title>
-<script src="/_sdk/data_sdk.js"></script>
-<script src="/_sdk/element_sdk.js"></script>
-<script src='//libtl.com/sdk.js' data-zone='10176108' data-sdk='show_10176108'></script>
-<style>
-  body { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:linear-gradient(135deg,#4a148c 0%,#880e4f 100%); color:#fff; min-height:100%; overflow-x:hidden;}
-  * { box-sizing:border-box;}
-  .container { max-width:600px; margin:0 auto; padding:20px;}
-  .header{text-align:center;margin-bottom:30px;padding:20px;}
-  .header h1{font-size:32px;margin:0 0 10px 0;text-shadow:2px 2px 4px rgba(0,0,0,0.3);}
-  .header p{font-size:16px;margin:0;opacity:0.9;}
-  .wheel-container{position:relative;width:100%;max-width:400px;margin:0 auto 30px;aspect-ratio:1;}
-  .wheel{width:100%;height:100%;border-radius:50%;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.5);transition: transform 4s cubic-bezier(0.17,0.67,0.12,0.99);border:8px solid #ffd700;}
-  .wheel-segment{position:absolute;width:50%;height:50%;transform-origin:100% 100%;clip-path:polygon(0 0,100% 0,100% 100%);display:flex;align-items:flex-start;justify-content:center;font-size:11px;font-weight:bold;text-align:center;padding:15px 5px 5px 5px;overflow:hidden;}
-  .segment-text{transform:rotate(-90deg) translateX(-20px);white-space:nowrap;text-shadow:1px 1px 2px rgba(0,0,0,0.5);}
-  .wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;background:linear-gradient(135deg,#ffd700,#ffed4e);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 15px rgba(0,0,0,0.4);z-index:10;}
-  .wheel-pointer{position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:20px solid transparent;border-right:20px solid transparent;border-top:40px solid #ec407a;z-index:20;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.3));}
-  .vip-status{background:rgba(255,255,255,0.1);border-radius:15px;padding:20px;margin-bottom:25px;text-align:center;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.2);}
-  .vip-status h3{margin:0 0 10px 0;font-size:20px;color:#ffd700;}
-  .vip-status p{margin:0;font-size:14px;line-height:1.5;}
-  .controls{background:rgba(255,255,255,0.1);border-radius:15px;padding:25px;margin-bottom:25px;backdrop-filter:blur(10px);border:2px solid rgba(255,255,255,0.2);}
-  .progress-bar{margin-bottom:20px;}
-  .progress-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;font-weight:bold;}
-  .progress-track{width:100%;height:12px;background:rgba(0,0,0,0.3);border-radius:6px;overflow:hidden;}
-  .progress-fill{height:100%;background:linear-gradient(90deg,#00e5ff,#ffd700);border-radius:6px;transition:width 0.3s ease;}
-  .button{width:100%;padding:16px;margin-bottom:12px;border:none;border-radius:12px;font-size:16px;font-weight:bold;cursor:pointer;transition:all 0.3s ease;box-shadow:0 4px 15px rgba(0,0,0,0.3);}
-  .button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
-  .button:active:not(:disabled){transform:translateY(0);}
-  .button:disabled{opacity:0.5;cursor:not-allowed;}
-  .button-primary{background:linear-gradient(135deg,#8e24aa,#ab47bc);color:white;}
-  .button-secondary{background:linear-gradient(135deg,#ec407a,#f06292);color:white;}
-  .button-tertiary{background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.3);}
-  .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:20px;}
-  .modal.active{display:flex;}
-  .modal-content{background:linear-gradient(135deg,#4a148c,#880e4f);border-radius:20px;padding:40px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);border:3px solid #ffd700;animation:modalPop 0.3s ease;}
-  @keyframes modalPop{0%{transform:scale(0.8);opacity:0;}100%{transform:scale(1);opacity:1;}}
-  .modal-content h2{font-size:28px;margin:0 0 15px 0;color:#ffd700;}
-  .modal-content p{font-size:18px;margin:0 0 25px 0;line-height:1.5;}
-  .footer{text-align:center;padding:30px 20px;margin-top:40px;border-top:2px solid rgba(255,255,255,0.2);}
-  .footer p{margin:5px 0;font-size:14px;opacity:0.8;}
-  .loading{display:inline-block;width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .flying-box{position:absolute;width:60px;height:60px;background:linear-gradient(135deg,#ffd700,#ffeb3b);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);z-index:15;animation:flyingMove 10s ease-in-out infinite alternate;}
-  @keyframes flyingMove{0%{transform:translate3d(0,0,0) rotateY(0deg);}50%{transform:translate3d(150px,-50px,50px) rotateY(180deg);}100%{transform:translate3d(0,0,0) rotateY(360deg);}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GainGrid Spin & Win</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <!-- Monetag SDK -->
+  <script src="//libtl.com/sdk.js" data-zone="10176108" data-sdk="show_10176108"></script>
+  <style>
+    body { box-sizing: border-box; margin:0; padding:0; font-family:'Segoe UI', sans-serif; background: linear-gradient(135deg,#4a148c 0%,#880e4f 100%); color:#fff; min-height:100%; overflow-x:hidden; }
+    * { box-sizing:border-box; }
+    .container { max-width:600px; margin:0 auto; padding:20px; position:relative; }
+    .header { text-align:center; margin-bottom:30px; padding:20px; }
+    .header h1 { font-size:32px; margin:0 0 10px 0; text-shadow:2px 2px 4px rgba(0,0,0,0.3); }
+    .header p { font-size:16px; margin:0; opacity:0.9; }
+    .wheel-container { position:relative; width:100%; max-width:400px; margin:0 auto 30px; aspect-ratio:1; }
+    .wheel { width:100%; height:100%; border-radius:50%; position:relative; box-shadow:0 8px 30px rgba(0,0,0,0.5); transition:transform 4s cubic-bezier(0.17,0.67,0.12,0.99); border:8px solid #ffd700; }
+    .wheel-segment { position:absolute; width:50%; height:50%; transform-origin:100% 100%; clip-path: polygon(0 0, 100% 0, 100% 100%); display:flex; align-items:flex-start; justify-content:center; font-size:11px; font-weight:bold; text-align:center; padding:15px 5px 5px 5px; overflow:hidden; }
+    .segment-text { transform:rotate(-90deg) translateX(-20px); white-space:nowrap; text-shadow:1px 1px 2px rgba(0,0,0,0.5); }
+    .wheel-center { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:80px; height:80px; background:linear-gradient(135deg,#ffd700,#ffed4e); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 4px 15px rgba(0,0,0,0.4); z-index:10; }
+    .wheel-pointer { position:absolute; top:-20px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:20px solid transparent; border-right:20px solid transparent; border-top:40px solid #ec407a; z-index:20; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); }
+    .vip-status { background: rgba(255,255,255,0.1); border-radius:15px; padding:20px; margin-bottom:25px; text-align:center; backdrop-filter:blur(10px); border:2px solid rgba(255,255,255,0.2); }
+    .vip-status h3 { margin:0 0 10px 0; font-size:20px; color:#ffd700; }
+    .vip-status p { margin:0; font-size:14px; line-height:1.5; }
+    .controls { background: rgba(255,255,255,0.1); border-radius:15px; padding:25px; margin-bottom:25px; backdrop-filter:blur(10px); border:2px solid rgba(255,255,255,0.2); }
+    .progress-bar { margin-bottom:20px; }
+    .progress-label { display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px; font-weight:bold; }
+    .progress-track { width:100%; height:12px; background:rgba(0,0,0,0.3); border-radius:6px; overflow:hidden; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,#00e5ff,#ffd700); border-radius:6px; transition:width 0.3s ease; }
+    .button { width:100%; padding:16px; margin-bottom:12px; border:none; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer; transition:all 0.3s ease; box-shadow:0 4px 15px rgba(0,0,0,0.3); }
+    .button:hover:not(:disabled){ transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.4); }
+    .button:active:not(:disabled){ transform:translateY(0); }
+    .button:disabled{ opacity:0.5; cursor:not-allowed; }
+    .button-primary{ background:linear-gradient(135deg,#8e24aa,#ab47bc); color:white; }
+    .button-secondary{ background:linear-gradient(135deg,#ec407a,#f06292); color:white; }
+    .button-tertiary{ background:rgba(255,255,255,0.2); color:white; border:2px solid rgba(255,255,255,0.3); }
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; padding:20px; }
+    .modal.active{ display:flex; }
+    .modal-content { background: linear-gradient(135deg,#4a148c,#880e4f); border-radius:20px; padding:40px; max-width:400px; width:100%; text-align:center; box-shadow:0 10px 40px rgba(0,0,0,0.5); border:3px solid #ffd700; animation: modalPop 0.3s ease; }
+    @keyframes modalPop { 0%{transform:scale(0.8);opacity:0;}100%{transform:scale(1);opacity:1;} }
+    .modal-content h2{ font-size:28px; margin:0 0 15px 0; color:#ffd700; }
+    .modal-content p{ font-size:18px; margin:0 0 25px 0; line-height:1.5; }
+    .footer { text-align:center; padding:30px 20px; margin-top:40px; border-top:2px solid rgba(255,255,255,0.2); }
+    .footer p{ margin:5px 0; font-size:14px; opacity:0.8; }
+    .loading{ display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+    /* Flying Box */
+    #flying-box { position: fixed; width:60px; height:60px; font-size:30px; top:50%; left:50%; transform:translate(-50%,-50%) rotateY(0deg); cursor:pointer; z-index:30; transition:transform 0.3s ease; }
+  </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <h1 id="main-title">🎡 Spin & Win G-Coins!</h1>
-    <p id="subtitle">Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!</p>
-  </div>
-  <div class="wheel-container">
-    <div class="wheel-pointer"></div>
-    <div class="wheel" id="wheel"></div>
-    <div class="wheel-center">🎡</div>
-    <div class="flying-box" id="flying-box" title="+3 Spins">🎁</div>
-  </div>
-  <div class="vip-status" id="vip-status">
-    <h3>VIP Status</h3>
-    <p id="vip-message">Loading...</p>
-  </div>
-  <div class="controls">
-    <div class="progress-bar">
-      <div class="progress-label"><span>Daily Spins</span> <span id="spins-count">0/10</span></div>
-      <div class="progress-track">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
+  <div class="container">
+    <div class="header">
+      <h1 id="main-title">🎡 Spin & Win G-Coins!</h1>
+      <p id="subtitle">Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!</p>
     </div>
-    <button class="button button-primary" id="spin-button">🌀 Spin Now</button>
-    <button class="button button-tertiary" id="refresh-button">🔄 Refresh Wheel</button>
+    <div class="wheel-container">
+      <div class="wheel-pointer"></div>
+      <div class="wheel" id="wheel"></div>
+      <div class="wheel-center">🎡</div>
+    </div>
+    <div id="flying-box">🎁</div>
+    <div class="vip-status" id="vip-status">
+      <h3>VIP Status</h3>
+      <p id="vip-message">Loading...</p>
+    </div>
+    <div class="controls">
+      <div class="progress-bar">
+        <div class="progress-label"><span>Daily Spins</span> <span id="spins-count">0/10</span></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+      <button class="button button-primary" id="spin-button">🌀 Spin Now</button>
+      <button class="button button-tertiary" id="refresh-button">🔄 Refresh Wheel</button>
+    </div>
   </div>
-</div>
-<div class="footer">
-  <p id="footer-text">© GainGrid 2025 | All rights reserved</p>
-  <p id="support-links">Telegram Support | Privacy Policy</p>
-</div>
-<div class="modal" id="result-modal">
-  <div class="modal-content">
-    <h2 id="modal-title">🎉 Congratulations!</h2>
-    <p id="modal-message">You won something amazing!</p>
-    <button class="button button-primary" id="modal-close">Continue</button>
+  <div class="footer">
+    <p id="footer-text">© GainGrid 2025 | All rights reserved</p>
+    <p id="support-links">Telegram Support | Privacy Policy</p>
   </div>
-</div>
+  <div class="modal" id="result-modal">
+    <div class="modal-content">
+      <h2 id="modal-title">🎉 Congratulations!</h2>
+      <p id="modal-message">You won something amazing!</p>
+      <button class="button button-primary" id="modal-close">Continue</button>
+    </div>
+  </div>
 
 <script>
-const defaultConfig = { main_title:"🎡 Spin & Win G-Coins!", subtitle:"Unlock rewards, rare VIPs, and bonuses. Spin 10x daily!", footer_text:"© GainGrid 2025 | All rights reserved", support_links:"Telegram Support | Privacy Policy"};
-const wheelSegments=[{text:"+50 G-Coins",color:"#8e24aa",value:50,type:"coins"},{text:"+100 G-Coins",color:"#ab47bc",value:100,type:"coins"},{text:"+200 G-Coins",color:"#ba68c8",value:200,type:"coins"},{text:"🎁 Mystery Box",color:"#ce93d8",value:0,type:"mystery"},{text:"🥉 Basic VIP",color:"#ffd700",value:0,type:"vip_basic"},{text:"Try Again",color:"#ec407a",value:0,type:"nothing"},{text:"🔁 Spin x2",color:"#f06292",value:0,type:"double_spin"},{text:"🔥 Bonus x2",color:"#f48fb1",value:0,type:"multiplier"},{text:"🧊 Cooldown Cut",color:"#00e5ff",value:0,type:"cooldown"},{text:"+500 G-Coins",color:"#9c27b0",value:500,type:"coins"}];
-
-let currentSegments=[...wheelSegments], userData=null, isSpinning=false, vipStartDate=null;
-const dataHandler={onDataChanged(data){if(data.length>0){userData=data[0];checkDailyReset();updateUI();}}};
-
-async function initializeApp(){
-  const initResult=await window.dataSdk.init(dataHandler);
-  if(!initResult.isOk){console.error("Failed to init SDK");return;}
-  if(!userData){const today=new Date().toISOString().split('T')[0];await window.dataSdk.create({id:"user_spin_data",spins_used:0,last_reset_date:today,total_coins_won:0,vip_status:"free",vip_expiry:""});}
-  shuffleWheel();renderWheel();setupEventListeners();loadFlyingBoxAds();
-}
-
-function checkDailyReset(){
-  const today=new Date().toISOString().split('T')[0];
-  if(userData.last_reset_date!==today){userData.spins_used=0;userData.last_reset_date=today;window.dataSdk.update(userData);}
-}
-
-function shuffleWheel(){currentSegments=[...wheelSegments].sort(()=>Math.random()-0.5);}
-function renderWheel(){const wheel=document.getElementById('wheel');wheel.innerHTML='';const segmentAngle=360/currentSegments.length;currentSegments.forEach((segment,index)=>{const segmentDiv=document.createElement('div');segmentDiv.className='wheel-segment';segmentDiv.style.background=segment.color;segmentDiv.style.transform=`rotate(${index*segmentAngle}deg)`;const textSpan=document.createElement('span');textSpan.className='segment-text';textSpan.textContent=segment.text;segmentDiv.appendChild(textSpan);wheel.appendChild(segmentDiv);});}
-
-function updateUI(){
-  if(!userData) return;
-  const spinsLeft=10-userData.spins_used;
-  document.getElementById('spins-count').textContent=`${spinsLeft}/10`;
-  const progressPercent=(spinsLeft/10)*100;document.getElementById('progress-fill').style.width=`${progressPercent}%`;
-  const spinButton=document.getElementById('spin-button');
-  if(userData.spins_used>=2&&spinsLeft===0){spinButton.textContent='▶️ Watch Ad to Unlock Spin';spinButton.className='button button-secondary';spinButton.disabled=isSpinning;spinButton.onclick=watchAd;}
-  else if(spinsLeft===0){spinButton.textContent='🌀 No Spins Left';spinButton.className='button button-primary';spinButton.disabled=true;spinButton.onclick=spinWheel;}
-  else{spinButton.textContent='🌀 Spin Now';spinButton.className='button button-primary';spinButton.disabled=isSpinning;spinButton.onclick=spinWheel;}
-  updateVIPStatus();
-}
-
-function updateVIPStatus(){
-  const vipMessage=document.getElementById('vip-message');if(!vipStartDate){vipStartDate=new Date();} const daysDiff=Math.floor((new Date()-vipStartDate)/86400000);
-  if(daysDiff<3){vipMessage.textContent="VIP badge not available yet. Keep spinning for 3-4 days.";}else if(userData.vip_status==="free"){vipMessage.textContent="You're currently a Free User. Win a VIP on the wheel or upgrade in your dashboard.";}
-  else if(userData.vip_status==="basic"){vipMessage.textContent="You're 🥉 Basic VIP — Spin now for a chance to upgrade to 🥈 Silver!";}
-  else if(userData.vip_status==="silver"){vipMessage.textContent="You're 🥈 Silver VIP — Spin now for a chance to upgrade to 🥇 Gold!";}
-  else if(userData.vip_status==="gold"){vipMessage.textContent="You're 🥇 Gold VIP — Maximum tier unlocked! Enjoy premium rewards!";}
-}
-
-async function spinWheel(){
-  if(isSpinning||userData.spins_used>=10) return;
-  isSpinning=true;const spinButton=document.getElementById('spin-button');spinButton.disabled=true;spinButton.innerHTML='<span class="loading"></span>';
-  const wheel=document.getElementById('wheel');const segmentAngle=360/currentSegments.length;const randomIndex=Math.floor(Math.random()*currentSegments.length);const targetRotation=360*5+(randomIndex*segmentAngle)+(segmentAngle/2);
-  wheel.style.transform=`rotate(${targetRotation}deg)`;
-  setTimeout(async()=>{
-    const winningSegment=currentSegments[randomIndex];await processWin(winningSegment);
-    wheel.style.transform='rotate(0deg)';wheel.style.transition='none';
-    setTimeout(()=>{wheel.style.transition='transform 4s cubic-bezier(0.17,0.67,0.12,0.99)';},50);
-    isSpinning=false;spinButton.innerHTML='🌀 Spin Now';updateUI();
-  },4000);
-}
-
-async function processWin(segment){
-  userData.spins_used+=1;
-  let modalTitle="🎉 Congratulations!";let modalMessage="";
-  switch(segment.type){
-    case "coins":userData.total_coins_won+=segment.value;modalTitle="💰 You Won!";modalMessage=`You won +${segment.value} G-Coins!\n✅ Credited to your wallet`;break;
-    case "vip_basic":userData.vip_status="basic";const expiryDate=new Date();expiryDate.setDate(expiryDate.getDate()+7);userData.vip_expiry=expiryDate.toISOString();modalTitle="👑 VIP Unlocked!";modalMessage="You won 🥉 Basic VIP (7-day access)\n✅ Activated now!";break;
-    case "mystery":const mysteryCoins=Math.floor(Math.random()*300)+100;userData.total_coins_won+=mysteryCoins;modalTitle="🎁 Mystery Box!";modalMessage=`You found +${mysteryCoins} G-Coins inside!\n✅ Credited to your wallet`;break;
-    case "double_spin":userData.spins_used-=1;modalTitle="🔁 Bonus Spin!";modalMessage="You won an extra spin!\n✅ Spin again now!";break;
-    case "multiplier":modalTitle="🔥 Multiplier Active!";modalMessage="Your next coin win will be doubled!\n✅ Spin again to activate!";break;
-    case "cooldown":modalTitle="🧊 Cooldown Cut!";modalMessage="Spin cooldown reduced!\n✅ Spin faster now!";break;
-    case "nothing":modalTitle="😅 Try Again!";modalMessage="Better luck next time!\n🎡 Keep spinning for rewards!";break;
+(async function(){
+  // -------- Decode payload from URL --------
+  function decodeBase64(str){
+    try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } 
+    catch(e){ console.error("Base64 decode failed:",e); return null; }
   }
-  await window.dataSdk.update(userData);
-  sendPostback(segment);
-  showModal(modalTitle,modalMessage);
-}
 
-function showModal(title,message){
-  document.getElementById('modal-title').textContent=title;
-  document.getElementById('modal-message').textContent=message;document.getElementById('result-modal').classList.add('active');
-}
+  const urlParams = new URLSearchParams(window.location.search);
+  let startData = null;
+  if(urlParams.has('start')){
+    startData = decodeBase64(urlParams.get('start'));
+  }
 
-document.getElementById('modal-close').addEventListener('click',()=>{
-  document.getElementById('result-modal').classList.remove('active');
-  updateUI();
-});
+  let userData = startData || { user_id:"anon", vip_level:"free", daily_spins:0, total_spins:10, points:0, session_id:"", callback_url:"", start_immediately:false};
+  let isSpinning=false;
+  let vipDelayDays=3; // VIP shows only after 3 days
+  const wheelSegments=[
+    { text:"+50 G-Coins", color:"#8e24aa", value:50, type:"coins" },
+    { text:"+100 G-Coins", color:"#ab47bc", value:100, type:"coins" },
+    { text:"+200 G-Coins", color:"#ba68c8", value:200, type:"coins" },
+    { text:"🎁 Mystery Box", color:"#ce93d8", value:0, type:"mystery" },
+    { text:"🥉 Basic VIP", color:"#ffd700", value:0, type:"vip_basic" },
+    { text:"Try Again", color:"#ec407a", value:0, type:"nothing" },
+    { text:"🔁 Spin x2", color:"#f06292", value:0, type:"double_spin" },
+    { text:"🔥 Bonus x2", color:"#f48fb1", value:0, type:"multiplier" },
+    { text:"🧊 Cooldown Cut", color:"#00e5ff", value:0, type:"cooldown" },
+    { text:"+500 G-Coins", color:"#9c27b0", value:500, type:"coins" }
+  ];
+  let currentSegments=[...wheelSegments];
 
-function sendPostback(segment){
-  if(!userData) return;
-  const ymid = userData.user_id || "user123";
-  const eventType = segment.type==="nothing"?"click":"yes";
-  const estimated_price = (segment.value/10000).toFixed(5);
-  const url=`https://your-backend.com/postback?ymid=${ymid}&event=${eventType}&zone_id=10176108&request_var=spin_wheel&telegram_id=${userData.user_id}&estimated_price=${estimated_price}`;
-  fetch(url).then(res=>console.log("Postback sent:",url)).catch(err=>console.error("Postback error:",err));
-}
+  // -------- Initialize Wheel --------
+  const wheel=document.getElementById('wheel');
+  function renderWheel(){
+    wheel.innerHTML="";
+    const segAngle=360/currentSegments.length;
+    currentSegments.forEach((seg,i)=>{
+      const div=document.createElement('div');
+      div.className="wheel-segment";
+      div.style.background=seg.color;
+      div.style.transform=`rotate(${i*segAngle}deg)`;
+      const span=document.createElement('span');
+      span.className="segment-text"; span.textContent=seg.text;
+      div.appendChild(span); wheel.appendChild(div);
+    });
+  }
 
-// Flying Box Logic
-const flyingBox=document.getElementById('flying-box');
-flyingBox.addEventListener('click',async()=>{
-  userData.spins_used=Math.max(userData.spins_used-3,0);
-  await window.dataSdk.update(userData);
-  showModal("🎁 Surprise Box!","+3 Spins added to your account!");
-  loadFlyingBoxAds();
-});
+  function shuffleWheel(){ currentSegments=[...wheelSegments].sort(()=>Math.random()-0.5); renderWheel(); }
 
-function loadFlyingBoxAds(){
-  // Rewarded Popup
-  show_10176108('pop').then(()=>{
-    console.log("Flying box ad displayed");
-  }).catch(e=>{console.error("Ad error",e);});
-}
-
-// Watch Ads Button
-async function watchAd(){
-  const spinButton=document.getElementById('spin-button');
-  spinButton.disabled=true;
-  spinButton.innerHTML='<span class="loading"></span> Loading Ad...';
-  try{
-    await show_10176108(); // Rewarded interstitial
-    userData.spins_used=Math.max(userData.spins_used-2,0);
-    await window.dataSdk.update(userData);
-    showModal("🎉 Ad Completed!","+2 Spins added to your account!");
-  }catch(e){
-    console.error("Ad failed",e);
-    showModal("⚠️ Ad Failed","Could not load ad. Try again later.");
-  }finally{
+  // -------- Flying Box 🎁 --------
+  const box=document.getElementById('flying-box');
+  let angleX=0, angleY=0;
+  function animateBox(){
+    angleX+=0.5; angleY+=0.3;
+    const x=Math.sin(angleX/50)*window.innerWidth/2 + window.innerWidth/2 -30;
+    const y=Math.sin(angleY/50)*window.innerHeight/2 + window.innerHeight/2 -30;
+    box.style.transform=`translate(${x}px,${y}px) rotateY(${angleX}deg)`;
+    requestAnimationFrame(animateBox);
+  }
+  box.onclick=async function(){
+    userData.points=(userData.points||0)+3;
     updateUI();
-  }
-}
+    // Show ad reward
+    try { await show_10176108('pop'); console.log("Ad watched via flying box 🎁"); } catch(e){ console.warn("Ad skipped",e); }
+  };
+  animateBox();
 
-// Load Smartlink Ads (optional popunder)
-function loadSmartlinks(){
+  // -------- Update UI --------
+  function updateVIPStatus(){
+    const vipMsg=document.getElementById('vip-message');
+    const startDate=new Date(userData.session_id.split("_")[2]||Date.now());
+    const now=new Date();
+    if((now-startDate)/(1000*60*60*24)<vipDelayDays){ // VIP hidden first 3 days
+      vipMsg.textContent="VIP will unlock soon..."; 
+    } else {
+      switch(userData.vip_level){
+        case"free": vipMsg.textContent="You're a Free User"; break;
+        case"basic": vipMsg.textContent="🥉 Basic VIP — Spin for upgrade"; break;
+        case"silver": vipMsg.textContent="🥈 Silver VIP — Spin for upgrade"; break;
+        case"gold": vipMsg.textContent="🥇 Gold VIP — Max tier unlocked"; break;
+      }
+    }
+  }
+
+  function updateUI(){
+    const spinsLeft=userData.total_spins-(userData.daily_spins||0);
+    document.getElementById('spins-count').textContent=`${spinsLeft}/10`;
+    document.getElementById('progress-fill').style.width=`${(spinsLeft/10)*100}%`;
+    updateVIPStatus();
+  }
+
+  // -------- Spin Wheel --------
+  async function spinWheel(){
+    if(isSpinning || (userData.daily_spins||0)>=userData.total_spins) return;
+    isSpinning=true; const spinBtn=document.getElementById('spin-button'); spinBtn.disabled=true; spinBtn.innerHTML='<span class="loading"></span>';
+    const segAngle=360/currentSegments.length;
+    const rand=Math.floor(Math.random()*currentSegments.length);
+    const targetRot=360*5+(rand*segAngle)+(segAngle/2);
+    wheel.style.transform=`rotate(${targetRot}deg)`;
+    setTimeout(async()=>{
+      const win=currentSegments[rand]; await processWin(win);
+      wheel.style.transition='none'; wheel.style.transform='rotate(0deg)'; 
+      setTimeout(()=>{ wheel.style.transition='transform 4s cubic-bezier(0.17,0.67,0.12,0.99)'; },50);
+      isSpinning=false; spinBtn.disabled=false; spinBtn.innerHTML='🌀 Spin Now';
+      updateUI();
+    },4000);
+  }
+
+  async function processWin(seg){
+    userData.daily_spins=(userData.daily_spins||0)+1;
+    let title="🎉 Congratulations!", msg="";
+    switch(seg.type){
+      case"coins": userData.points=(userData.points||0)+seg.value; title="💰 You Won!"; msg=`+${seg.value} G-Coins!`; break;
+      case"vip_basic": userData.vip_level="basic"; title="👑 VIP Unlocked!"; msg="🥉 Basic VIP activated!"; break;
+      case"mystery": const coins=Math.floor(Math.random()*300)+100; userData.points=(userData.points||0)+coins; title="🎁 Mystery Box"; msg=`You found +${coins} G-Coins!`; break;
+      case"double_spin": userData.daily_spins=(userData.daily_spins||0)-1; title="🔁 Bonus Spin!"; msg="Extra spin awarded!"; break;
+      case"multiplier": title="🔥 Multiplier Active!"; msg="Next coin win doubled!"; break;
+      case"cooldown": title="🧊 Cooldown Cut!"; msg="Spin faster now!"; break;
+      case"nothing": title="😅 Try Again!"; msg="Better luck next time!"; break;
+    }
+    showModal(title,msg);
+    // Send spin result to bot
+    if(userData.callback_url){
+      try{ await fetch(userData.callback_url,{ method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify({ user_id:userData.user_id, spin_result:seg, points:userData.points, vip_level:userData.vip_level, session_id:userData.session_id }) }); } catch(e){ console.warn("Callback failed",e); }
+    }
+  }
+
+  function showModal(title,msg){
+    document.getElementById('modal-title').textContent=title;
+    document.getElementById('modal-message').textContent=msg;
+    document.getElementById('result-modal').classList.add('active');
+  }
+// -------- Modal Close --------
+  const modalClose = document.getElementById('modal-close');
+  modalClose.addEventListener('click', () => {
+    document.getElementById('result-modal').classList.remove('active');
+  });
+
+  // -------- Refresh Wheel --------
+  document.getElementById('refresh-button').addEventListener('click', () => {
+    shuffleWheel();
+  });
+
+  // -------- Spin Button --------
+  document.getElementById('spin-button').addEventListener('click', async () => {
+    // Optional: show ad before spin
+    try {
+      await show_10176108(); // Rewarded interstitial
+      console.log("Ad watched before spin ✅");
+    } catch(e){
+      console.warn("Ad skipped or failed", e);
+    }
+    spinWheel();
+  });
+
+  // -------- Auto Start if Deeplink Start --------
+  if(userData.start_immediately){
+    setTimeout(() => { spinWheel(); }, 500); // Start immediately after load
+  }
+
+  // -------- Initial Setup --------
+  renderWheel();
+  updateUI();
+
+  // -------- Optional: Load ads smartlinks after 15 seconds --------
   setTimeout(()=>{
     const iframe1=document.createElement('iframe');
-    iframe1.src="https://otieu.com/4/10176185";
-    iframe1.style.display="none";document.body.appendChild(iframe1);
+    iframe1.src='https://otieu.com/4/10176185';
+    iframe1.style.display='none'; document.body.appendChild(iframe1);
     const iframe2=document.createElement('iframe');
-    iframe2.src="https://otieu.com/4/10176155";
-    iframe2.style.display="none";document.body.appendChild(iframe2);
+    iframe2.src='https://otieu.com/4/10176155';
+    iframe2.style.display='none'; document.body.appendChild(iframe2);
   },15000);
-}
 
-// Event Listeners
-function setupEventListeners(){
-  document.getElementById('refresh-button').addEventListener('click',()=>{
-    shuffleWheel();
-    renderWheel();
-  });
-}
-
-// Decode Base64 / watch_ads data
-function decodeWatchAdsData(encoded){
-  try{
-    const decoded=atob(encoded);
-    return JSON.parse(decoded);
-  }catch(e){
-    console.error("Invalid watch_ads data:",encoded,e);
-    return {};
-  }
-}
-
-// Initialize App
-initializeApp();
-loadSmartlinks();
+})();
 </script>
 </body>
 </html>
