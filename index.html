@@ -386,62 +386,82 @@
       modal.classList.remove('active');
     }
 
-    // ---------- Deeplink auto-validation & incoming payload ----------
-    function startAutoValidationFlow(payload) {
-      try {
-        if (!payload) return;
-        incomingPayload = payload;
-        const secs = Number(payload.secs || payload.seconds || payload.duration || 0);
-        const adId = payload.ad_id || payload.adid || payload.id;
-        const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
-        window.__gaingrid_incoming = payload;
+// ---------- Deeplink auto-validation & incoming payload (SPIN & WIN version) ----------
+function startAutoValidationFlow(payload) {
+  try {
+    if (!payload) return;
+    incomingPayload = payload;
+    const secs = Number(payload.secs || payload.seconds || payload.duration || 0);
+    const spinId = payload.ad_id || payload.adid || payload.id; // keep naming consistent
+    const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
+    window.__gaingrid_incoming = payload;
 
-        if (secs > 0) {
-          const el = document.getElementById('vip-message');
-          if (el) el.textContent = `Ad playing... (${secs}s) — will auto-validate when done.`;
-          let remaining = secs;
-          const interval = setInterval(()=> {
-            remaining--;
-            if (el) el.textContent = `Ad playing... (${Math.max(0,remaining)}s) — will auto-validate when done.`;
-            if (remaining <= 0) clearInterval(interval);
-          },1000);
-          setTimeout(async ()=>{
-            const wrapper = { action:'ads_validate', payload:{ ad_id:adId, user_id:userId, status:'ad_complete', secs:secs, reward:payload.reward||null, ts:new Date().toISOString() }, meta:{ from_hosted:true, auto:true } };
-            const res = await postToCallbackOrWebhook(wrapper, payload.callback_url || payload.webhook);
-            console.log('auto validation POST result', res);
-            try { const vipEl = document.getElementById('vip-message'); if (vipEl) vipEl.textContent = 'Ad validated — thank you!'; } catch(e){}
-            if (res && res.ok) { showModal('✅ Ad Verified','Thanks — reward will be credited shortly.'); setTimeout(()=>{ closeModal(); try{ if (window.Telegram && Telegram.WebApp) Telegram.WebApp.close(); } catch(e){} },1400); }
-            else showModal('⚠️ Validation Failed','Could not notify bot. Please try again or contact support.');
-          }, secs*1000 + 300);
-        } else {
-          if (payload.start === true || payload.start === 'true' || payload.start_immediately === true) autoStartRequested = true;
+    if (secs > 0) {
+      const el = document.getElementById('vip-message');
+      if (el) el.textContent = `Spin will start automatically in ${secs}s...`;
+      let remaining = secs;
+      const interval = setInterval(()=> {
+        remaining--;
+        if (el) el.textContent = `Spin will start automatically in ${Math.max(0,remaining)}s...`;
+        if (remaining <= 0) clearInterval(interval);
+      },1000);
+
+      // ------------------ FIXED SPIN & WIN AUTO-START ------------------
+      setTimeout(() => {
+        // Instead of ads_validate, trigger the spin automatically
+        if (userData && (userData.spins_used || 0) < MAX_DAILY_SPINS) {
+          autoStartRequested = true;
+          if (autoStartRequested) spinWheel();
         }
-
-        setupSkipOnClose(payload);
-      } catch(e){ console.error('startAutoValidationFlow err', e); }
+        if (el) el.textContent = 'Spin is starting...';
+      }, secs*1000 + 200);
+      // -----------------------------------------------------------------
+    } else {
+      if (payload.start === true || payload.start === 'true' || payload.start_immediately === true) autoStartRequested = true;
     }
 
-    function setupSkipOnClose(payload) {
-      let alreadySent = false;
-      const callback = payload && (payload.callback_url || payload.callbackUrl || payload.webhook || payload.callbackurl);
-      function handler(e) {
-        try {
-          if (alreadySent) return;
-          alreadySent = true;
-          const adId = payload.ad_id || payload.adid || payload.id;
-          const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
-          const wrapper = { action:'ads_validate', payload:{ ad_id:adId, user_id:userId, status:'ad_skipped', ts:new Date().toISOString() }, meta:{ from_hosted:true, reason:'closed' } };
-          try {
-            const target = callback || (incomingPayload && (incomingPayload.callback_url||incomingPayload.webhook)) || '<% options.url %>';
-            const blob = new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
-            if (navigator && navigator.sendBeacon) navigator.sendBeacon(target, blob);
-            else fetch(target, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(wrapper), keepalive:true });
-          } catch(err){ console.warn('skip-on-close post failed', err); }
-        } catch(e){}
-      }
-      window.addEventListener('beforeunload', handler);
-      window.addEventListener('pagehide', handler);
-    }
+    setupSkipOnClose(payload); // keep this for proper skip handling
+  } catch(e){ console.error('startAutoValidationFlow err', e); }
+}
+
+// ---------- setupSkipOnClose (SPIN & WIN version) ----------
+function setupSkipOnClose(payload) {
+  let alreadySent = false;
+  const callback = payload && (payload.callback_url || payload.callbackUrl || payload.webhook || payload.callbackurl);
+
+  function handler(e) {
+    try {
+      if (alreadySent) return;
+      alreadySent = true;
+      const spinId = payload.ad_id || payload.adid || payload.id;
+      const userId = payload.user_id || (payload.user && payload.user.user_id) || payload.userid || payload.userId;
+
+      // ------------------ FIXED SPIN & WIN SKIP ------------------
+      const wrapper = {
+        action:'spin_skipped',
+        payload:{
+          spin_id: spinId,
+          user_id: userId,
+          status:'skipped',
+          ts:new Date().toISOString()
+        },
+        meta:{ from_hosted:true, reason:'closed' }
+      };
+      // -------------------------------------------------------------
+
+      try {
+        const target = callback || (incomingPayload && (incomingPayload.callback_url || incomingPayload.webhook)) || '<% options.url %>';
+        const blob = new Blob([JSON.stringify(wrapper)], { type: 'application/json' });
+        if (navigator && navigator.sendBeacon) navigator.sendBeacon(target, blob);
+        else fetch(target, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(wrapper), keepalive:true });
+      } catch(err){ console.warn('skip-on-close post failed', err); }
+
+    } catch(e){}
+  }
+
+  window.addEventListener('beforeunload', handler);
+  window.addEventListener('pagehide', handler);
+}
 
     // ---------- dataSdk handler ----------
     const dataHandler = {
